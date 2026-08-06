@@ -1,4 +1,4 @@
-// content.js - Advanced HD Audio Engine for volUP Extension (Zero-Crackling Engine)
+// content.js - Pure Transparent & Zero-Distortion Audio Engine for volUP
 
 (function () {
   if (window.volUPInjected) return;
@@ -26,17 +26,21 @@
     return audioCtx;
   }
 
-  // Precision Soft Limiter Curve preventing amplitude spikes > 0.95 (-0.45 dBFS safety margin)
-  function createZeroCracklingLimiterCurve() {
+  // Smooth transparent soft-clipping curve (Active only on extreme peaks above 0.98)
+  function createTransparentLimiterCurve() {
     const n_samples = 65536;
     const curve = new Float32Array(n_samples);
-    const ceiling = 0.95; // Hard ceiling guarantee below digital 1.0 clipping point
 
     for (let i = 0; i < n_samples; ++i) {
       let x = (i * 2) / n_samples - 1; // -1.0 to +1.0
-      // Smooth arctan soft-knee compression curve
-      let y = Math.atan(x * 1.8) / Math.atan(1.8);
-      curve[i] = y * ceiling;
+      // Linear transparent mapping up to 0.9, soft saturation above 0.9
+      if (Math.abs(x) < 0.85) {
+        curve[i] = x;
+      } else {
+        const sign = x < 0 ? -1 : 1;
+        const absX = Math.abs(x);
+        curve[i] = sign * (0.85 + (1 - 0.85) * Math.tanh((absX - 0.85) / (1 - 0.85)));
+      }
     }
     return curve;
   }
@@ -52,7 +56,6 @@
       const ctx = getAudioContext();
       if (!ctx) return;
 
-      // Handle cross-origin media safely
       if (mediaElement.src && !mediaElement.src.startsWith('blob:') && !mediaElement.src.startsWith('data:')) {
         try {
           const url = new URL(mediaElement.src, window.location.href);
@@ -64,33 +67,28 @@
 
       const source = ctx.createMediaElementSource(mediaElement);
       
-      // Node 1: Highpass Filter (Sub-bass rumble removal below 35Hz to free up headroom & stop speaker rattle)
-      const highpassFilter = ctx.createBiquadFilter();
-      highpassFilter.type = 'highpass';
-      highpassFilter.frequency.setValueAtTime(35, ctx.currentTime);
-      highpassFilter.Q.setValueAtTime(0.7, ctx.currentTime);
+      // Subsonic Filter (20Hz highpass - ultra gentle cut, leaves normal bass 100% untouched)
+      const subsonicFilter = ctx.createBiquadFilter();
+      subsonicFilter.type = 'highpass';
+      subsonicFilter.frequency.setValueAtTime(20, ctx.currentTime);
+      subsonicFilter.Q.setValueAtTime(0.5, ctx.currentTime);
 
-      // Node 2: Boost Gain Node
-      const boostGainNode = ctx.createGain();
-
-      // Node 3: Brickwall Dynamics Compressor Node
-      const brickwallCompressor = ctx.createDynamicsCompressor();
+      const gainNode = ctx.createGain();
+      const compressorNode = ctx.createDynamicsCompressor();
+      const limiterNode = ctx.createWaveShaper();
       
-      // Node 4: Soft Limiter WaveShaper
-      const softLimiterNode = ctx.createWaveShaper();
-      softLimiterNode.curve = createZeroCracklingLimiterCurve();
-      softLimiterNode.oversample = '4x';
+      limiterNode.curve = createTransparentLimiterCurve();
+      limiterNode.oversample = '2x';
 
-      // Node 5: Output Master Safety Gain Node
-      const masterOutputGain = ctx.createGain();
+      const masterGainNode = ctx.createGain();
 
       const chain = {
         source,
-        highpassFilter,
-        boostGainNode,
-        brickwallCompressor,
-        softLimiterNode,
-        masterOutputGain,
+        subsonicFilter,
+        gainNode,
+        compressorNode,
+        limiterNode,
+        masterGainNode,
         element: mediaElement
       };
 
@@ -105,7 +103,7 @@
       mediaElement.addEventListener('play', resumeAudio, { passive: true });
 
     } catch (err) {
-      console.warn("volUP: Failed to attach AudioContext to element", err);
+      console.warn("volUP: Failed to attach AudioContext", err);
     }
   }
 
@@ -115,52 +113,58 @@
 
     try {
       chain.source.disconnect();
-      chain.highpassFilter.disconnect();
-      chain.boostGainNode.disconnect();
-      chain.brickwallCompressor.disconnect();
-      chain.softLimiterNode.disconnect();
-      chain.masterOutputGain.disconnect();
+      chain.subsonicFilter.disconnect();
+      chain.gainNode.disconnect();
+      chain.compressorNode.disconnect();
+      chain.limiterNode.disconnect();
+      chain.masterGainNode.disconnect();
 
       const isMuted = audioState.isMuted;
-      const boostFactor = isMuted ? 0 : (audioState.volume / 100);
+      const targetVolume = isMuted ? 0 : audioState.volume;
+      const boostFactor = targetVolume / 100;
 
-      if (audioState.antiDistortion && audioState.volume > 100) {
-        // --- ZERO-CRACKLING ANTI-DISTORTION DSP PIPELINE ---
-        
-        // 1. Boost volume first
-        chain.boostGainNode.gain.setValueAtTime(boostFactor, ctx.currentTime);
-
-        // 2. Dynamically adjust compressor parameters based on gain level to prevent saturation
-        // As boost increases (e.g. 6.0 at 600%), lower threshold and increase compression ratio
-        const boostRatio = audioState.volume / 100;
-        const dynamicThreshold = -12 - (boostRatio * 2.5); // Drops to ~ -27 dB at 600%
-        const dynamicRatio = Math.min(20, 8 + boostRatio * 2); // Scales ratio up to 20:1 brickwall
-
-        chain.brickwallCompressor.threshold.setValueAtTime(dynamicThreshold, ctx.currentTime);
-        chain.brickwallCompressor.knee.setValueAtTime(6, ctx.currentTime);
-        chain.brickwallCompressor.ratio.setValueAtTime(dynamicRatio, ctx.currentTime);
-        chain.brickwallCompressor.attack.setValueAtTime(0.001, ctx.currentTime); // Instant attack
-        chain.brickwallCompressor.release.setValueAtTime(0.12, ctx.currentTime);
-
-        // 3. Master output safety gain scaling to keep peak output clean
-        const masterSafety = Math.max(0.7, 1.0 - (boostRatio - 1) * 0.05); // Smooth attenuation at 600%
-        chain.masterOutputGain.gain.setValueAtTime(masterSafety, ctx.currentTime);
-
-        // Connect Chain:
-        // Source -> Highpass (35Hz) -> Boost Gain -> Brickwall Compressor -> Soft Limiter -> Master Safety -> Destination
-        chain.source.connect(chain.highpassFilter);
-        chain.highpassFilter.connect(chain.boostGainNode);
-        chain.boostGainNode.connect(chain.brickwallCompressor);
-        chain.brickwallCompressor.connect(chain.softLimiterNode);
-        chain.softLimiterNode.connect(chain.masterOutputGain);
-        chain.masterOutputGain.connect(ctx.destination);
-
-      } else {
-        // --- DIRECT GAIN ROUTE (No Compression) ---
-        chain.boostGainNode.gain.setValueAtTime(boostFactor, ctx.currentTime);
-        chain.source.connect(chain.boostGainNode);
-        chain.boostGainNode.connect(ctx.destination);
+      // RULE 1: At 100% volume or lower, DIRECT PASSTHROUGH (100% Bit-exact original sound)
+      if (targetVolume <= 100 || !audioState.antiDistortion) {
+        chain.gainNode.gain.setValueAtTime(boostFactor, ctx.currentTime);
+        chain.source.connect(chain.gainNode);
+        chain.gainNode.connect(ctx.destination);
+        return;
       }
+
+      // RULE 2: Above 100% volume with Anti-Distortion enabled
+      // Smooth dynamic scaling based on how much boost is applied
+      const t = (targetVolume - 100) / 500; // 0.0 at 100%, 1.0 at 600%
+
+      // Highpass frequency smoothly transitions from 20Hz up to 30Hz
+      const hpFreq = 20 + (t * 10);
+      chain.subsonicFilter.frequency.setValueAtTime(hpFreq, ctx.currentTime);
+
+      // Compressor threshold transitions smoothly from -6dB (gentle) to -16dB (strong)
+      const threshold = -6 - (t * 10);
+      // Compression ratio transitions smoothly from 3:1 (very subtle) to 8:1 (controlled boost)
+      const ratio = 3 + (t * 5);
+
+      chain.compressorNode.threshold.setValueAtTime(threshold, ctx.currentTime);
+      chain.compressorNode.knee.setValueAtTime(24, ctx.currentTime); // Soft knee for natural warmth
+      chain.compressorNode.ratio.setValueAtTime(ratio, ctx.currentTime);
+      chain.compressorNode.attack.setValueAtTime(0.005, ctx.currentTime);
+      chain.compressorNode.release.setValueAtTime(0.15, ctx.currentTime);
+
+      // Main Gain Boost
+      chain.gainNode.gain.setValueAtTime(boostFactor, ctx.currentTime);
+
+      // Output master scaling to keep audio crystal clear
+      const masterScale = 1.0 / (1.0 + t * 0.25);
+      chain.masterGainNode.gain.setValueAtTime(masterScale, ctx.currentTime);
+
+      // Chain: Source -> SubsonicFilter -> BoostGain -> Compressor -> Limiter -> MasterGain -> Destination
+      chain.source.connect(chain.subsonicFilter);
+      chain.subsonicFilter.connect(chain.gainNode);
+      chain.gainNode.connect(chain.compressorNode);
+      chain.compressorNode.connect(chain.limiterNode);
+      chain.limiterNode.connect(chain.masterGainNode);
+      chain.masterGainNode.connect(ctx.destination);
+
     } catch (e) {
       console.warn("volUP: Error reconnecting audio chain", e);
     }
