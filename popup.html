@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>volUP - Volume Booster</title>
+  <link rel="stylesheet" href="popup.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="logo-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="title">volUP</span>
+          <span class="subtitle">Sound Booster</span>
+        </div>
+      </div>
+      <div class="domain-badge" id="domainDisplay">Aktif Sekme</div>
+    </header>
+
+    <!-- Main Volume Display -->
+    <section class="volume-display-card">
+      <div class="visualizer" id="visualizer">
+        <span class="bar bar-1"></span>
+        <span class="bar bar-2"></span>
+        <span class="bar bar-3"></span>
+        <span class="bar bar-4"></span>
+        <span class="bar bar-5"></span>
+        <span class="bar bar-6"></span>
+      </div>
+
+      <div class="percentage-wrapper">
+        <span class="volume-value" id="volumeValue">100</span>
+        <span class="percent-symbol">%</span>
+      </div>
+
+      <div class="status-indicator" id="statusIndicator">
+        <span class="status-dot"></span>
+        <span class="status-text" id="statusText">Normal Ses Leveli</span>
+      </div>
+    </section>
+
+    <!-- Controls -->
+    <section class="controls-section">
+      <!-- Slider -->
+      <div class="slider-container">
+        <input type="range" id="volumeSlider" min="0" max="600" step="5" value="100" class="volume-slider">
+        <div class="slider-track-fill" id="sliderFill"></div>
+      </div>
+
+      <!-- Presets -->
+      <div class="presets-grid">
+        <button class="preset-btn" data-preset="100">%100</button>
+        <button class="preset-btn" data-preset="200">%200</button>
+        <button class="preset-btn" data-preset="300">%300</button>
+        <button class="preset-btn" data-preset="400">%400</button>
+        <button class="preset-btn max-btn" data-preset="600">%600 MAX</button>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="actions-row">
+        <button class="action-btn mute-btn" id="muteBtn">
+          <svg class="icon-mute" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
+          </svg>
+          <span id="muteBtnText">Sesi Kapat</span>
+        </button>
+
+        <button class="action-btn reset-btn" id="resetBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+            <path d="M3 3v5h5"></path>
+          </svg>
+          Sıfırla
+        </button>
+      </div>
+    </section>
+
+    <!-- Settings / Anti-Distortion Card -->
+    <section class="settings-card">
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-title">
+            <span>Net Ses (Anti-Distortion)</span>
+            <span class="badge-pro">SMART</span>
+          </div>
+          <div class="setting-desc">Yüksek seste cızırtı ve ses bozulmasını otomatik engeller</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="antiDistortionToggle" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-divider"></div>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-title">Bu site için hatırla</div>
+          <div class="setting-desc">Sekmeyi tekrar açtığında ayarlanan seviyeyi koru</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="rememberDomainToggle">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span>volUP v1.0 • HD Audio Engine</span>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
