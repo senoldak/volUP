@@ -1,4 +1,4 @@
-// content.js - Pure Focused Pro Audio Engine for volUP (v1.3.1 - Autoplay Policy Fix)
+// content.js - Pure Focused Pro Audio Engine for volUP (v1.4.0 Studio Edition)
 
 (function () {
   if (window.volUPInjected) return;
@@ -13,15 +13,17 @@
     bassBoost: 0, // 0 to +12 dB
     trebleBoost: 0, // 0 to +12 dB
     audioProfile: 'flat', // 'flat', 'podcast', 'asmr', 'cinema', 'music'
-    eqBands: [0, 0, 0, 0, 0]
+    eqMode: '5band', // '5band' or '10band'
+    vizTheme: 'waves', // 'waves', 'pulse', 'led'
+    eqBands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] // 10 bands: 31Hz, 62Hz, 125Hz, 250Hz, 500Hz, 1kHz, 2kHz, 4kHz, 8kHz, 16kHz
   };
 
   const PROFILES = {
-    flat: { eq: [0, 0, 0, 0, 0], bass: 0, treble: 0 },
-    podcast: { eq: [-3, 3, 6, 4, 1], bass: 0, treble: 2 },
-    asmr: { eq: [2, 4, 6, 7, 8], bass: 3, treble: 6 },
-    cinema: { eq: [6, 3, 0, 2, 4], bass: 6, treble: 3 },
-    music: { eq: [5, 2, -1, 3, 6], bass: 5, treble: 4 }
+    flat: { eq: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], bass: 0, treble: 0 },
+    podcast: { eq: [-4, -2, 0, 3, 5, 6, 4, 2, 0, -2], bass: 0, treble: 2 },
+    asmr: { eq: [2, 3, 4, 5, 6, 7, 8, 8, 7, 5], bass: 3, treble: 6 },
+    cinema: { eq: [6, 5, 4, 2, 0, 1, 3, 4, 5, 3], bass: 6, treble: 3 },
+    music: { eq: [5, 4, 2, 0, -1, -1, 2, 4, 5, 4], bass: 5, treble: 4 }
   };
 
   const processedElements = new WeakMap();
@@ -37,14 +39,12 @@
     return audioCtx;
   }
 
-  // Safely resume AudioContext on user interaction or media play
   function ensureAudioContextResumed() {
     if (audioCtx && audioCtx.state === 'suspended') {
       audioCtx.resume().catch(() => {});
     }
   }
 
-  // Attach global user gesture listener to comply with Chrome Autoplay policy
   function attachGestureListeners() {
     const handleGesture = () => {
       ensureAudioContextResumed();
@@ -108,13 +108,14 @@
       trebleBoostNode.frequency.setValueAtTime(8000, ctx.currentTime);
       trebleBoostNode.gain.setValueAtTime(0, ctx.currentTime);
 
-      const eqFrequencies = [60, 250, 1000, 4000, 12000];
-      const eqTypes = ['lowshelf', 'peaking', 'peaking', 'peaking', 'highshelf'];
+      // 10-Band Equalizer Frequencies: 31Hz, 62Hz, 125Hz, 250Hz, 500Hz, 1kHz, 2kHz, 4kHz, 8kHz, 16kHz
+      const eqFrequencies = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+      const eqTypes = ['lowshelf', 'peaking', 'peaking', 'peaking', 'peaking', 'peaking', 'peaking', 'peaking', 'peaking', 'highshelf'];
       const eqNodes = eqFrequencies.map((freq, idx) => {
         const filter = ctx.createBiquadFilter();
         filter.type = eqTypes[idx];
         filter.frequency.setValueAtTime(freq, ctx.currentTime);
-        filter.Q.setValueAtTime(1.0, ctx.currentTime);
+        filter.Q.setValueAtTime(1.4, ctx.currentTime);
         filter.gain.setValueAtTime(0, ctx.currentTime);
         return filter;
       });
@@ -131,6 +132,10 @@
       limiterNode.curve = createTransparentLimiterCurve();
       limiterNode.oversample = '2x';
 
+      // AnalyserNode for Real-Time Peak Meter
+      const analyserNode = ctx.createAnalyser();
+      analyserNode.fftSize = 256;
+
       const masterGainNode = ctx.createGain();
 
       const chain = {
@@ -143,6 +148,7 @@
         gainNode,
         compressorNode,
         limiterNode,
+        analyserNode,
         masterGainNode,
         element: mediaElement
       };
@@ -175,12 +181,13 @@
       chain.gainNode.disconnect();
       chain.compressorNode.disconnect();
       chain.limiterNode.disconnect();
+      chain.analyserNode.disconnect();
       chain.masterGainNode.disconnect();
 
       chain.bassBoostNode.gain.setValueAtTime(audioState.bassBoost || 0, ctx.currentTime);
       chain.trebleBoostNode.gain.setValueAtTime(audioState.trebleBoost || 0, ctx.currentTime);
 
-      if (audioState.eqBands && audioState.eqBands.length === 5) {
+      if (audioState.eqBands && audioState.eqBands.length === 10) {
         chain.eqNodes.forEach((node, idx) => {
           const val = audioState.eqBands[idx] || 0;
           node.gain.setValueAtTime(val, ctx.currentTime);
@@ -257,6 +264,8 @@
       lastNode.connect(chain.limiterNode);
       lastNode = chain.limiterNode;
 
+      lastNode.connect(chain.analyserNode);
+
       const t = Math.min(1.0, Math.max(0, targetVolume - 100) / 900);
       const masterScale = 1.0 / (1.0 + t * 0.35);
       chain.masterGainNode.gain.setValueAtTime(masterScale, ctx.currentTime);
@@ -285,7 +294,7 @@
     const domain = window.location.hostname;
     chrome.storage.local.get([
       'globalVolume', 'antiDistortion', 'isMuted', 'siteVolumes',
-      'nightMode', 'panBalance', 'bassBoost', 'trebleBoost', 'audioProfile', 'eqBands'
+      'nightMode', 'panBalance', 'bassBoost', 'trebleBoost', 'audioProfile', 'eqBands', 'eqMode', 'vizTheme'
     ], (res) => {
       if (res.globalVolume !== undefined) audioState.volume = res.globalVolume;
       if (res.antiDistortion !== undefined) audioState.antiDistortion = res.antiDistortion;
@@ -295,6 +304,8 @@
       if (res.bassBoost !== undefined) audioState.bassBoost = res.bassBoost;
       if (res.trebleBoost !== undefined) audioState.trebleBoost = res.trebleBoost;
       if (res.audioProfile !== undefined) audioState.audioProfile = res.audioProfile;
+      if (res.eqMode !== undefined) audioState.eqMode = res.eqMode;
+      if (res.vizTheme !== undefined) audioState.vizTheme = res.vizTheme;
       if (res.eqBands !== undefined) audioState.eqBands = res.eqBands;
 
       if (res.siteVolumes && res.siteVolumes[domain] !== undefined) {
@@ -355,6 +366,8 @@
         bassBoost: audioState.bassBoost,
         trebleBoost: audioState.trebleBoost,
         audioProfile: audioState.audioProfile,
+        eqMode: audioState.eqMode,
+        vizTheme: audioState.vizTheme,
         eqBands: audioState.eqBands,
         domain: window.location.hostname
       });
@@ -412,8 +425,23 @@
       return true;
     }
 
+    if (message.type === "SET_EQ_MODE") {
+      audioState.eqMode = message.mode;
+      chrome.storage.local.set({ eqMode: audioState.eqMode });
+      scanAndApply();
+      sendResponse({ status: "OK", eqMode: audioState.eqMode });
+      return true;
+    }
+
+    if (message.type === "SET_VIZ_THEME") {
+      audioState.vizTheme = message.theme;
+      chrome.storage.local.set({ vizTheme: audioState.vizTheme });
+      sendResponse({ status: "OK", vizTheme: audioState.vizTheme });
+      return true;
+    }
+
     if (message.type === "SET_EQ") {
-      if (message.eqBands && message.eqBands.length === 5) {
+      if (message.eqBands && message.eqBands.length === 10) {
         audioState.eqBands = message.eqBands;
         chrome.storage.local.set({ eqBands: audioState.eqBands });
         scanAndApply();

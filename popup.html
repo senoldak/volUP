@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>volUP - Pro Audio Engine & Tab Mixer</title>
+  <title>volUP - Pro Studio Audio Engine</title>
   <link rel="stylesheet" href="popup.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,17 +23,21 @@
         </div>
         <div class="brand-text">
           <span class="title">volUP</span>
-          <span class="subtitle">Pro Audio Engine v1.3</span>
+          <span class="subtitle">Studio Edition v1.4</span>
         </div>
       </div>
-      <div class="domain-badge" id="domainDisplay">Active Tab</div>
+      <div class="header-actions">
+        <button class="theme-toggle-btn" id="vizThemeBtn" title="Switch Visualizer Theme">🎨 FX</button>
+        <div class="domain-badge" id="domainDisplay">Active Tab</div>
+      </div>
     </header>
 
     <!-- Navigation Tabs -->
     <nav class="nav-tabs">
       <button class="nav-tab active" data-tab="tab-volume">Volume</button>
       <button class="nav-tab" data-tab="tab-eq">EQ & Boost</button>
-      <button class="nav-tab" data-tab="tab-mixer">Tab Mixer</button>
+      <button class="nav-tab" data-tab="tab-mixer">Mixer</button>
+      <button class="nav-tab" data-tab="tab-sites">Sites</button>
       <button class="nav-tab" data-tab="tab-tools">Tools</button>
     </nav>
 
@@ -46,7 +50,8 @@
           <span>SPEAKER GUARD ACTIVE</span>
         </div>
 
-        <div class="visualizer" id="visualizer">
+        <!-- Visualizer Container with Theme Switcher Support -->
+        <div class="visualizer waves-theme" id="visualizer">
           <span class="bar bar-1"></span>
           <span class="bar bar-2"></span>
           <span class="bar bar-3"></span>
@@ -160,7 +165,7 @@
       </section>
     </main>
 
-    <!-- TAB 2: 5-BAND EQUALIZER & QUICK BOOST -->
+    <!-- TAB 2: EQUALIZER & QUICK BOOST -->
     <main class="tab-content" id="tab-eq">
       <!-- Quick Bass & Treble Knobs Card -->
       <section class="quick-boost-card">
@@ -184,10 +189,17 @@
 
       <section class="eq-card">
         <div class="eq-header">
-          <span class="eq-title">Graphic Equalizer</span>
+          <div class="eq-title-row">
+            <span class="eq-title">Studio Equalizer</span>
+            <div class="eq-mode-switch">
+              <button class="mode-btn active" id="eq5Btn">5-Band</button>
+              <button class="mode-btn" id="eq10Btn">10-Band Pro</button>
+            </div>
+          </div>
           <button class="reset-eq-btn" id="resetEqBtn">Reset EQ</button>
         </div>
 
+        <!-- EQ Presets -->
         <div class="eq-presets-row">
           <button class="eq-preset-btn active" data-eq="flat">Flat</button>
           <button class="eq-preset-btn" data-eq="bass">Bass</button>
@@ -196,32 +208,47 @@
           <button class="eq-preset-btn" data-eq="pop">Pop</button>
         </div>
 
-        <div class="eq-sliders-grid">
+        <!-- 5-Band Sliders -->
+        <div class="eq-sliders-grid" id="eq5Grid">
           <div class="eq-band">
             <span class="eq-db" id="eqDb-0">0dB</span>
-            <input type="range" class="eq-slider" data-band="0" min="-12" max="12" step="1" value="0" orient="vertical">
+            <input type="range" class="eq-slider" data-band="0" min="-12" max="12" step="1" value="0">
             <span class="eq-freq">60Hz</span>
           </div>
           <div class="eq-band">
             <span class="eq-db" id="eqDb-1">0dB</span>
-            <input type="range" class="eq-slider" data-band="1" min="-12" max="12" step="1" value="0" orient="vertical">
+            <input type="range" class="eq-slider" data-band="1" min="-12" max="12" step="1" value="0">
             <span class="eq-freq">250Hz</span>
           </div>
           <div class="eq-band">
             <span class="eq-db" id="eqDb-2">0dB</span>
-            <input type="range" class="eq-slider" data-band="2" min="-12" max="12" step="1" value="0" orient="vertical">
+            <input type="range" class="eq-slider" data-band="2" min="-12" max="12" step="1" value="0">
             <span class="eq-freq">1kHz</span>
           </div>
           <div class="eq-band">
             <span class="eq-db" id="eqDb-3">0dB</span>
-            <input type="range" class="eq-slider" data-band="3" min="-12" max="12" step="1" value="0" orient="vertical">
+            <input type="range" class="eq-slider" data-band="3" min="-12" max="12" step="1" value="0">
             <span class="eq-freq">4kHz</span>
           </div>
           <div class="eq-band">
             <span class="eq-db" id="eqDb-4">0dB</span>
-            <input type="range" class="eq-slider" data-band="4" min="-12" max="12" step="1" value="0" orient="vertical">
+            <input type="range" class="eq-slider" data-band="4" min="-12" max="12" step="1" value="0">
             <span class="eq-freq">12kHz</span>
           </div>
+        </div>
+
+        <!-- 10-Band Pro Sliders -->
+        <div class="eq-sliders-grid10" id="eq10Grid" style="display: none;">
+          <div class="eq-band"><span class="eq-db" id="eq10Db-0">0dB</span><input type="range" class="eq-slider10" data-band10="0" min="-12" max="12" value="0"><span class="eq-freq">31</span></div>
+          <div class="eq-band"><span class="eq-db" id="eq10Db-1">0dB</span><input type="range" class="eq-slider10" data-band10="1" min="-12" max="12" value="0"><span class="eq-freq">62</span></div>
+          <div class="eq-band"><span class="eq-db" id="eq10Db-2">0dB</span><input type="range" class="eq-slider10" data-band10="2" min="-12" max="12" value="0"><span class="eq-freq">125</span></div>
+          <div class="eq-band"><span class="eq-db" id="eq10Db-3">0dB</span><input type="range" class="eq-slider10" data-band10="3" min="-12" max="12" value="0"><span class="eq-freq">250</span></div>
+          <div class="eq-band"><span class="eq-db" id="eq10Db-4">0dB</span><input type="range" class="eq-slider10" data-band10="4" min="-12" max="12" value="0"><span class="eq-freq">500</span></div>
+          <div class="eq-band"><span class="eq-db" id="eq10Db-5">0dB</span><input type="range" class="eq-slider10" data-band10="5" min="-12" max="12" value="0"><span class="eq-freq">1k</span></div>
+          <div class="eq-band"><span class="eq-db" id="eq10Db-6">0dB</span><input type="range" class="eq-slider10" data-band10="6" min="-12" max="12" value="0"><span class="eq-freq">2k</span></div>
+          <div class="eq-band"><span class="eq-db" id="eq10Db-7">0dB</span><input type="range" class="eq-slider10" data-band10="7" min="-12" max="12" value="0"><span class="eq-freq">4k</span></div>
+          <div class="eq-band"><span class="eq-db" id="eq10Db-8">0dB</span><input type="range" class="eq-slider10" data-band10="8" min="-12" max="12" value="0"><span class="eq-freq">8k</span></div>
+          <div class="eq-band"><span class="eq-db" id="eq10Db-9">0dB</span><input type="range" class="eq-slider10" data-band10="9" min="-12" max="12" value="0"><span class="eq-freq">16k</span></div>
         </div>
       </section>
     </main>
@@ -240,7 +267,21 @@
       </section>
     </main>
 
-    <!-- TAB 4: TOOLS & SHORTCUTS -->
+    <!-- TAB 4: DOMAIN RULES MANAGER -->
+    <main class="tab-content" id="tab-sites">
+      <section class="sites-card">
+        <div class="sites-header">
+          <span class="sites-title">Saved Domain Rules</span>
+          <button class="clear-sites-btn" id="clearSitesBtn">Clear All</button>
+        </div>
+
+        <div class="sites-list" id="sitesList">
+          <div class="empty-sites">No site volume rules saved yet</div>
+        </div>
+      </section>
+    </main>
+
+    <!-- TAB 5: TOOLS & BACKUP -->
     <main class="tab-content" id="tab-tools">
       <section class="tools-card">
         <div class="tool-group">
@@ -252,6 +293,20 @@
             <span class="side-label">L</span>
             <input type="range" id="panSlider" min="-1" max="1" step="0.1" value="0" class="tool-slider">
             <span class="side-label">R</span>
+          </div>
+        </div>
+
+        <div class="setting-divider"></div>
+
+        <!-- Import / Export Settings Backup -->
+        <div class="tool-group">
+          <div class="tool-label-row">
+            <span>Backup & Restore Settings</span>
+          </div>
+          <div class="backup-actions-row">
+            <button class="action-btn" id="exportSettingsBtn">📥 Export JSON</button>
+            <button class="action-btn" id="importSettingsBtn">📤 Import JSON</button>
+            <input type="file" id="importFileInput" accept=".json" style="display: none;">
           </div>
         </div>
 
@@ -277,7 +332,7 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <span>volUP v1.3 • Pro Audio Engine</span>
+      <span>volUP v1.4 • Studio Audio Engine</span>
     </footer>
   </div>
 

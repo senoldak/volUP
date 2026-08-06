@@ -1,4 +1,4 @@
-// popup.js - UI Controller for volUP (v1.3.0 Pro)
+// popup.js - UI Controller for volUP (v1.4.0 Studio Edition)
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Navigation Tabs
@@ -15,6 +15,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (tab.dataset.tab === 'tab-mixer') {
         loadMixerTabs();
+      } else if (tab.dataset.tab === 'tab-sites') {
+        loadSavedSites();
       }
     });
   });
@@ -27,6 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const statusDot = document.querySelector('.status-dot');
   const domainDisplay = document.getElementById('domainDisplay');
   const visualizer = document.getElementById('visualizer');
+  const vizThemeBtn = document.getElementById('vizThemeBtn');
   const safetyGuardBadge = document.getElementById('safetyGuardBadge');
   const antiDistortionToggle = document.getElementById('antiDistortionToggle');
   const nightModeToggle = document.getElementById('nightModeToggle');
@@ -44,15 +47,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   const trebleVal = document.getElementById('trebleVal');
   const resetEqBtn = document.getElementById('resetEqBtn');
   const eqPresetBtns = document.querySelectorAll('.eq-preset-btn');
-  const eqSliders = document.querySelectorAll('.eq-slider');
+  const eq5Btn = document.getElementById('eq5Btn');
+  const eq10Btn = document.getElementById('eq10Btn');
+  const eq5Grid = document.getElementById('eq5Grid');
+  const eq10Grid = document.getElementById('eq10Grid');
+  const eqSliders5 = document.querySelectorAll('.eq-slider');
+  const eqSliders10 = document.querySelectorAll('.eq-slider10');
 
-  // Mixer Controls
+  // Mixer & Sites Controls
   const mixerList = document.getElementById('mixerList');
   const refreshTabsBtn = document.getElementById('refreshTabsBtn');
+  const sitesList = document.getElementById('sitesList');
+  const clearSitesBtn = document.getElementById('clearSitesBtn');
 
-  // Tools Controls
+  // Tools & Backup Controls
   const panSlider = document.getElementById('panSlider');
   const panValue = document.getElementById('panValue');
+  const exportSettingsBtn = document.getElementById('exportSettingsBtn');
+  const importSettingsBtn = document.getElementById('importSettingsBtn');
+  const importFileInput = document.getElementById('importFileInput');
 
   let activeTabId = null;
   let currentVolume = 100;
@@ -63,15 +76,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentBass = 0;
   let currentTreble = 0;
   let currentProfile = 'flat';
-  let currentEqBands = [0, 0, 0, 0, 0];
+  let currentEqMode = '5band';
+  let currentVizTheme = 'waves';
+  let currentEqBands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-  const EQ_PRESETS = {
-    flat: [0, 0, 0, 0, 0],
-    bass: [6, 4, 0, -2, -3],
-    vocal: [-2, 2, 5, 3, 0],
-    movie: [4, 2, 1, 3, 5],
-    pop: [3, 1, -1, 2, 4]
+  const EQ_PRESETS_10 = {
+    flat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    bass: [6, 5, 4, 2, 0, -1, -2, -2, -3, -3],
+    vocal: [-3, -2, 0, 2, 4, 6, 5, 3, 1, -1],
+    movie: [5, 4, 3, 1, 0, 1, 2, 3, 4, 4],
+    pop: [4, 3, 2, 0, -1, -1, 1, 3, 4, 4]
   };
+
+  const VIZ_THEMES = ['waves', 'pulse', 'led'];
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab) {
@@ -100,7 +117,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       currentBass = response.bassBoost !== undefined ? response.bassBoost : 0;
       currentTreble = response.trebleBoost !== undefined ? response.trebleBoost : 0;
       currentProfile = response.audioProfile || 'flat';
-      currentEqBands = response.eqBands || [0, 0, 0, 0, 0];
+      currentEqMode = response.eqMode || '5band';
+      currentVizTheme = response.vizTheme || 'waves';
+      currentEqBands = response.eqBands || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
       if (response.domain) {
         chrome.storage.local.get(['siteVolumes'], (res) => {
@@ -122,7 +141,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fillPercent = (currentVolume / 1000) * 100;
     sliderFill.style.width = `${fillPercent}%`;
 
-    // Speaker Guard Badge Display (> 500%)
     if (currentVolume > 500) {
       safetyGuardBadge.classList.add('active');
     } else {
@@ -192,13 +210,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     trebleSlider.value = currentTreble;
     trebleVal.textContent = `+${currentTreble} dB`;
 
-    eqSliders.forEach((slider, idx) => {
-      const val = currentEqBands[idx] || 0;
+    if (currentEqMode === '10band') {
+      eq5Btn.classList.remove('active');
+      eq10Btn.classList.add('active');
+      eq5Grid.style.display = 'none';
+      eq10Grid.style.display = 'grid';
+    } else {
+      eq10Btn.classList.remove('active');
+      eq5Btn.classList.add('active');
+      eq10Grid.style.display = 'none';
+      eq5Grid.style.display = 'grid';
+    }
+
+    eqSliders5.forEach((slider, idx) => {
+      const bandIndex = idx * 2 + 1; // Map 5-band to 10-band array positions
+      const val = currentEqBands[bandIndex] || 0;
       slider.value = val;
       const dbLabel = document.getElementById(`eqDb-${idx}`);
-      if (dbLabel) {
-        dbLabel.textContent = val > 0 ? `+${val}dB` : `${val}dB`;
-      }
+      if (dbLabel) dbLabel.textContent = val > 0 ? `+${val}dB` : `${val}dB`;
+    });
+
+    eqSliders10.forEach((slider, idx) => {
+      const val = currentEqBands[idx] || 0;
+      slider.value = val;
+      const dbLabel = document.getElementById(`eq10Db-${idx}`);
+      if (dbLabel) dbLabel.textContent = val > 0 ? `+${val}dB` : `${val}dB`;
     });
 
     // Tools Tab
@@ -206,6 +242,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (currentPan === 0) panValue.textContent = 'Center';
     else if (currentPan < 0) panValue.textContent = `${Math.abs(Math.round(currentPan * 100))}% Left`;
     else panValue.textContent = `${Math.round(currentPan * 100)}% Right`;
+
+    vizThemeBtn.textContent = `🎨 ${currentVizTheme.toUpperCase()}`;
   }
 
   function setVolume(newVolume) {
@@ -252,6 +290,99 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
   }
+
+  // Load Saved Domain Rules Manager
+  function loadSavedSites() {
+    sitesList.innerHTML = '<div class="empty-sites">Loading saved domain rules...</div>';
+    chrome.storage.local.get(['siteVolumes'], (res) => {
+      const siteVolumes = res.siteVolumes || {};
+      const domains = Object.keys(siteVolumes);
+
+      if (domains.length === 0) {
+        sitesList.innerHTML = '<div class="empty-sites">No site volume rules saved yet</div>';
+        return;
+      }
+
+      sitesList.innerHTML = '';
+      domains.forEach(domain => {
+        const item = document.createElement('div');
+        item.className = 'site-rule-item';
+
+        const info = document.createElement('div');
+        info.className = 'site-rule-info';
+
+        const name = document.createElement('span');
+        name.className = 'site-domain-name';
+        name.textContent = domain;
+        info.appendChild(name);
+
+        const badge = document.createElement('span');
+        badge.className = 'site-vol-badge';
+        badge.textContent = `${siteVolumes[domain]}%`;
+        info.appendChild(badge);
+
+        item.appendChild(info);
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'delete-rule-btn';
+        delBtn.textContent = '✖';
+        delBtn.title = `Delete rule for ${domain}`;
+        delBtn.addEventListener('click', () => {
+          delete siteVolumes[domain];
+          chrome.storage.local.set({ siteVolumes }, () => {
+            loadSavedSites();
+          });
+        });
+
+        item.appendChild(delBtn);
+        sitesList.appendChild(item);
+      });
+    });
+  }
+
+  // Clear All Saved Site Rules
+  clearSitesBtn.addEventListener('click', () => {
+    chrome.storage.local.set({ siteVolumes: {} }, () => {
+      loadSavedSites();
+    });
+  });
+
+  // Export Settings to JSON
+  exportSettingsBtn.addEventListener('click', () => {
+    chrome.storage.local.get(null, (allData) => {
+      const jsonStr = JSON.stringify(allData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'volUP-backup-settings.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  });
+
+  // Import Settings from JSON
+  importSettingsBtn.addEventListener('click', () => {
+    importFileInput.click();
+  });
+
+  importFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const importedData = JSON.parse(evt.target.result);
+        chrome.storage.local.set(importedData, () => {
+          fetchState();
+          alert("volUP settings imported successfully!");
+        });
+      } catch (err) {
+        alert("Failed to import settings: Invalid JSON file.");
+      }
+    };
+    reader.readAsText(file);
+  });
 
   // Load Multi-Tab Mixer List
   function loadMixerTabs() {
@@ -306,6 +437,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Listeners: Theme Switcher
+  vizThemeBtn.addEventListener('click', () => {
+    const currentIdx = VIZ_THEMES.indexOf(currentVizTheme);
+    currentVizTheme = VIZ_THEMES[(currentIdx + 1) % VIZ_THEMES.length];
+    updateUI();
+    if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_VIZ_THEME", theme: currentVizTheme });
+  });
+
   // Listeners: Volume Tab
   volumeSlider.addEventListener('input', (e) => setVolume(parseInt(e.target.value, 10)));
   presetBtns.forEach(btn => btn.addEventListener('click', () => setVolume(parseInt(btn.dataset.preset, 10))));
@@ -333,7 +472,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Listeners: Quick Boost & EQ
+  // Listeners: EQ Mode Switcher (5-Band vs 10-Band Pro)
+  eq5Btn.addEventListener('click', () => {
+    currentEqMode = '5band';
+    updateUI();
+    if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_EQ_MODE", mode: '5band' });
+  });
+
+  eq10Btn.addEventListener('click', () => {
+    currentEqMode = '10band';
+    updateUI();
+    if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_EQ_MODE", mode: '10band' });
+  });
+
+  // Listeners: Quick Boost & EQ Sliders
   bassSlider.addEventListener('input', (e) => {
     currentBass = parseInt(e.target.value, 10);
     bassVal.textContent = `+${currentBass} dB`;
@@ -346,10 +498,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_TREBLE_BOOST", val: currentTreble });
   });
 
-  eqSliders.forEach((slider) => {
+  eqSliders5.forEach((slider, idx) => {
     slider.addEventListener('input', () => {
-      const bands = Array.from(eqSliders).map(s => parseInt(s.value, 10));
-      sendEQ(bands);
+      const val = parseInt(slider.value, 10);
+      const bandIndex = idx * 2 + 1;
+      currentEqBands[bandIndex] = val;
+      sendEQ([...currentEqBands]);
+    });
+  });
+
+  eqSliders10.forEach((slider, idx) => {
+    slider.addEventListener('input', () => {
+      const val = parseInt(slider.value, 10);
+      currentEqBands[idx] = val;
+      sendEQ([...currentEqBands]);
     });
   });
 
@@ -358,14 +520,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       eqPresetBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const presetKey = btn.dataset.eq;
-      if (EQ_PRESETS[presetKey]) {
-        sendEQ([...EQ_PRESETS[presetKey]]);
+      if (EQ_PRESETS_10[presetKey]) {
+        sendEQ([...EQ_PRESETS_10[presetKey]]);
       }
     });
   });
 
   resetEqBtn.addEventListener('click', () => {
-    sendEQ([0, 0, 0, 0, 0]);
+    sendEQ([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
   });
 
   refreshTabsBtn.addEventListener('click', loadMixerTabs);
