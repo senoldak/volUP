@@ -1,4 +1,4 @@
-// content.js - Pure Focused Pro Audio Engine for volUP (v1.3.0)
+// content.js - Pure Focused Pro Audio Engine for volUP (v1.3.1 - Autoplay Policy Fix)
 
 (function () {
   if (window.volUPInjected) return;
@@ -18,10 +18,10 @@
 
   const PROFILES = {
     flat: { eq: [0, 0, 0, 0, 0], bass: 0, treble: 0 },
-    podcast: { eq: [-3, 3, 6, 4, 1], bass: 0, treble: 2 },   // Speech clarity (300Hz-3.4kHz boost)
-    asmr: { eq: [2, 4, 6, 7, 8], bass: 3, treble: 6 },       // High sensitivity whisper boost
-    cinema: { eq: [6, 3, 0, 2, 4], bass: 6, treble: 3 },     // Sub-bass punch + dialogue clarity
-    music: { eq: [5, 2, -1, 3, 6], bass: 5, treble: 4 }       // Punchy bass + crisp highs
+    podcast: { eq: [-3, 3, 6, 4, 1], bass: 0, treble: 2 },
+    asmr: { eq: [2, 4, 6, 7, 8], bass: 3, treble: 6 },
+    cinema: { eq: [6, 3, 0, 2, 4], bass: 6, treble: 3 },
+    music: { eq: [5, 2, -1, 3, 6], bass: 5, treble: 4 }
   };
 
   const processedElements = new WeakMap();
@@ -34,10 +34,25 @@
         audioCtx = new AudioCtx({ latencyHint: 'interactive' });
       }
     }
-    if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
     return audioCtx;
+  }
+
+  // Safely resume AudioContext on user interaction or media play
+  function ensureAudioContextResumed() {
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
+  }
+
+  // Attach global user gesture listener to comply with Chrome Autoplay policy
+  function attachGestureListeners() {
+    const handleGesture = () => {
+      ensureAudioContextResumed();
+    };
+
+    ['click', 'keydown', 'touchstart', 'pointerdown'].forEach(evt => {
+      window.addEventListener(evt, handleGesture, { passive: true, once: false });
+    });
   }
 
   function createTransparentLimiterCurve() {
@@ -78,25 +93,21 @@
 
       const source = ctx.createMediaElementSource(mediaElement);
       
-      // Subsonic Filter (20Hz highpass cut)
       const subsonicFilter = ctx.createBiquadFilter();
       subsonicFilter.type = 'highpass';
       subsonicFilter.frequency.setValueAtTime(20, ctx.currentTime);
       subsonicFilter.Q.setValueAtTime(0.5, ctx.currentTime);
 
-      // Bass Boost Node (80Hz Lowshelf)
       const bassBoostNode = ctx.createBiquadFilter();
       bassBoostNode.type = 'lowshelf';
       bassBoostNode.frequency.setValueAtTime(80, ctx.currentTime);
       bassBoostNode.gain.setValueAtTime(0, ctx.currentTime);
 
-      // Treble Boost Node (8kHz Highshelf)
       const trebleBoostNode = ctx.createBiquadFilter();
       trebleBoostNode.type = 'highshelf';
       trebleBoostNode.frequency.setValueAtTime(8000, ctx.currentTime);
       trebleBoostNode.gain.setValueAtTime(0, ctx.currentTime);
 
-      // 5-Band Equalizer Nodes
       const eqFrequencies = [60, 250, 1000, 4000, 12000];
       const eqTypes = ['lowshelf', 'peaking', 'peaking', 'peaking', 'highshelf'];
       const eqNodes = eqFrequencies.map((freq, idx) => {
@@ -140,11 +151,10 @@
       processedElements.set(mediaElement, chain);
 
       const resumeAudio = () => {
-        if (ctx.state === 'suspended') {
-          ctx.resume();
-        }
+        ensureAudioContextResumed();
       };
       mediaElement.addEventListener('play', resumeAudio, { passive: true });
+      mediaElement.addEventListener('playing', resumeAudio, { passive: true });
 
     } catch (err) {
       console.warn("volUP: Failed to attach AudioContext", err);
@@ -167,11 +177,9 @@
       chain.limiterNode.disconnect();
       chain.masterGainNode.disconnect();
 
-      // Apply Bass & Treble Quick Knobs
       chain.bassBoostNode.gain.setValueAtTime(audioState.bassBoost || 0, ctx.currentTime);
       chain.trebleBoostNode.gain.setValueAtTime(audioState.trebleBoost || 0, ctx.currentTime);
 
-      // Apply EQ Bands
       if (audioState.eqBands && audioState.eqBands.length === 5) {
         chain.eqNodes.forEach((node, idx) => {
           const val = audioState.eqBands[idx] || 0;
@@ -179,7 +187,6 @@
         });
       }
 
-      // Apply Panner
       if (chain.pannerNode) {
         const panVal = Math.max(-1, Math.min(1, audioState.panBalance || 0));
         chain.pannerNode.pan.setValueAtTime(panVal, ctx.currentTime);
@@ -194,7 +201,6 @@
       const hasNightMode = audioState.nightMode;
       const hasPan = audioState.panBalance !== 0;
 
-      // RULE 1: Direct passthrough if 100% volume and no active DSP processing
       if (targetVolume <= 100 && !audioState.antiDistortion && !hasEQ && !hasBassTreble && !hasNightMode && !hasPan) {
         chain.gainNode.gain.setValueAtTime(boostFactor, ctx.currentTime);
         chain.source.connect(chain.gainNode);
@@ -275,6 +281,7 @@
   }
 
   function init() {
+    attachGestureListeners();
     const domain = window.location.hostname;
     chrome.storage.local.get([
       'globalVolume', 'antiDistortion', 'isMuted', 'siteVolumes',
@@ -336,6 +343,8 @@
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    ensureAudioContextResumed();
+
     if (message.type === "GET_STATUS") {
       sendResponse({
         volume: audioState.volume,

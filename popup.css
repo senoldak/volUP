@@ -1,4 +1,4 @@
-/* popup.css - volUP Pro Audio Engine Styling System (v1.3.0) */
+/* popup.css - volUP Pro Audio Engine Styling System (v1.3.1) */
 
 :root {
   --bg-main: #0b0f19;
@@ -624,14 +624,16 @@ input:checked + .toggle-slider:before { transform: translateX(16px); }
   font-weight: 600;
 }
 
+/* W3C Standard Vertical Slider Syntax (Replaces deprecated slider-vertical appearance) */
 .eq-slider {
-  -webkit-appearance: none;
-  appearance: slider-vertical;
-  width: 12px;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 14px;
   height: 80px;
   background: rgba(255, 255, 255, 0.08);
   outline: none;
   border-radius: 4px;
+  cursor: pointer;
 }
 
 /* TAB 3: MULTI-TAB MIXER */
