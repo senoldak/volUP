@@ -1,4 +1,4 @@
-// popup.js - UI Controller for volUP (v1.4.2 Theme Engine Fix)
+// popup.js - UI Controller for volUP (v1.4.3 Balance Reset & Sites Tab Fix)
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Navigation Tabs
@@ -63,6 +63,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Tools & Backup Controls
   const panSlider = document.getElementById('panSlider');
   const panValue = document.getElementById('panValue');
+  const resetPanBtn = document.getElementById('resetPanBtn');
   const exportSettingsBtn = document.getElementById('exportSettingsBtn');
   const importSettingsBtn = document.getElementById('importSettingsBtn');
   const importFileInput = document.getElementById('importFileInput');
@@ -440,7 +441,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Visualizer Theme Cycle Switcher with Persistent Storage Fix
+  // Visualizer Theme Cycle Switcher
   vizThemeBtn.addEventListener('click', () => {
     const currentIdx = VIZ_THEMES.indexOf(currentVizTheme);
     currentVizTheme = VIZ_THEMES[(currentIdx + 1) % VIZ_THEMES.length];
@@ -542,12 +543,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   refreshTabsBtn.addEventListener('click', loadMixerTabs);
 
-  // Listeners: Tools
+  // Listeners: Tools & Balance Reset
   panSlider.addEventListener('input', (e) => {
     currentPan = parseFloat(e.target.value);
     updateUI();
     chrome.storage.local.set({ panBalance: currentPan });
     if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_PAN", pan: currentPan });
+  });
+
+  resetPanBtn.addEventListener('click', () => {
+    currentPan = 0;
+    updateUI();
+    chrome.storage.local.set({ panBalance: 0 });
+    if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_PAN", pan: 0 });
   });
 
   fetchState();

@@ -50,7 +50,7 @@
           <span>SPEAKER GUARD ACTIVE</span>
         </div>
 
-        <!-- Visualizer Container with Theme Switcher Support -->
+        <!-- Visualizer Container -->
         <div class="visualizer waves-theme" id="visualizer">
           <span class="bar bar-1"></span>
           <span class="bar bar-2"></span>
@@ -271,7 +271,7 @@
     <main class="tab-content" id="tab-sites">
       <section class="sites-card">
         <div class="sites-header">
-          <span class="sites-title">Saved Domain Rules</span>
+          <span class="sites-title">Saved Site Rules</span>
           <button class="clear-sites-btn" id="clearSitesBtn">Clear All</button>
         </div>
 
@@ -286,7 +286,10 @@
       <section class="tools-card">
         <div class="tool-group">
           <div class="tool-label-row">
-            <span>Left / Right Balance</span>
+            <div>
+              <span>Left / Right Balance</span>
+              <button class="reset-eq-btn" id="resetPanBtn" style="margin-left: 6px;">Reset</button>
+            </div>
             <span class="tool-value" id="panValue">Center</span>
           </div>
           <div class="balance-slider-wrapper">
