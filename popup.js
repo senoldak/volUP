@@ -1,4 +1,4 @@
-// popup.js - UI Controller for volUP (v1.2.0)
+// popup.js - UI Controller for volUP (v1.3.0)
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Navigation Tabs
@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const visualizer = document.getElementById('visualizer');
   const antiDistortionToggle = document.getElementById('antiDistortionToggle');
   const nightModeToggle = document.getElementById('nightModeToggle');
+  const skipSilenceToggle = document.getElementById('skipSilenceToggle');
   const rememberDomainToggle = document.getElementById('rememberDomainToggle');
   const muteBtn = document.getElementById('muteBtn');
   const muteBtnText = document.getElementById('muteBtnText');
@@ -48,6 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let isMuted = false;
   let isAntiDistortion = true;
   let isNightMode = false;
+  let isSkipSilence = false;
   let currentPan = 0;
   let currentSpeed = 1.0;
   let currentEqBands = [0, 0, 0, 0, 0];
@@ -83,6 +85,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       isAntiDistortion = response.antiDistortion !== undefined ? response.antiDistortion : true;
       isMuted = !!response.isMuted;
       isNightMode = !!response.nightMode;
+      isSkipSilence = !!response.skipSilence;
       currentPan = response.panBalance !== undefined ? response.panBalance : 0;
       currentSpeed = response.playbackSpeed !== undefined ? response.playbackSpeed : 1.0;
       currentEqBands = response.eqBands || [0, 0, 0, 0, 0];
@@ -149,6 +152,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     antiDistortionToggle.checked = isAntiDistortion;
     nightModeToggle.checked = isNightMode;
+    skipSilenceToggle.checked = isSkipSilence;
 
     presetBtns.forEach(btn => {
       const presetVal = parseInt(btn.dataset.preset, 10);
@@ -235,6 +239,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   nightModeToggle.addEventListener('change', (e) => {
     isNightMode = e.target.checked;
     if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_NIGHT_MODE", enabled: isNightMode });
+  });
+
+  skipSilenceToggle.addEventListener('change', (e) => {
+    isSkipSilence = e.target.checked;
+    if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_SKIP_SILENCE", enabled: isSkipSilence });
   });
 
   rememberDomainToggle.addEventListener('change', (e) => {

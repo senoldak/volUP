@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "volUP - Smart Volume Booster, EQ & Audio Engine",
-  "version": "1.2.0",
-  "description": "Boost web volume up to 1000%, 5-band Graphic EQ, Anti-Distortion, Night Mode, Mono & Speed controls.",
+  "version": "1.3.0",
+  "description": "Boost volume up to 1000%, Skip Silence automatically, 5-band Graphic EQ, Anti-Distortion, Night Mode & Speed controls.",
   "permissions": [
     "activeTab",
     "storage",

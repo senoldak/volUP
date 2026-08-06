@@ -1,4 +1,4 @@
-// content.js - Complete Multi-Feature Audio Engine for volUP (v1.2.0)
+// content.js - Complete Multi-Feature Audio Engine for volUP (v1.3.0 with Skip Silence)
 
 (function () {
   if (window.volUPInjected) return;
@@ -9,10 +9,11 @@
     antiDistortion: true,
     isMuted: false,
     nightMode: false,
+    skipSilence: false,
     isMono: false,
     panBalance: 0, // -1.0 (Left) to +1.0 (Right)
     playbackSpeed: 1.0, // 0.5 to 3.0
-    eqBands: [0, 0, 0, 0, 0] // 60Hz, 250Hz, 1kHz, 4kHz, 12kHz gain in dB (-12 to +12)
+    eqBands: [0, 0, 0, 0, 0]
   };
 
   const processedElements = new WeakMap();
@@ -69,13 +70,11 @@
 
       const source = ctx.createMediaElementSource(mediaElement);
       
-      // Subsonic Highpass Filter (20Hz)
       const subsonicFilter = ctx.createBiquadFilter();
       subsonicFilter.type = 'highpass';
       subsonicFilter.frequency.setValueAtTime(20, ctx.currentTime);
       subsonicFilter.Q.setValueAtTime(0.5, ctx.currentTime);
 
-      // 5-Band Equalizer Nodes (60Hz, 250Hz, 1kHz, 4kHz, 12kHz)
       const eqFrequencies = [60, 250, 1000, 4000, 12000];
       const eqTypes = ['lowshelf', 'peaking', 'peaking', 'peaking', 'highshelf'];
       const eqNodes = eqFrequencies.map((freq, idx) => {
@@ -87,7 +86,6 @@
         return filter;
       });
 
-      // Stereo Panner Node
       let pannerNode = null;
       if (ctx.createStereoPanner) {
         pannerNode = ctx.createStereoPanner();
@@ -100,6 +98,10 @@
       limiterNode.curve = createTransparentLimiterCurve();
       limiterNode.oversample = '2x';
 
+      // AnalyserNode for Real-Time Silence Detection
+      const analyserNode = ctx.createAnalyser();
+      analyserNode.fftSize = 512;
+
       const masterGainNode = ctx.createGain();
 
       const chain = {
@@ -110,14 +112,19 @@
         gainNode,
         compressorNode,
         limiterNode,
+        analyserNode,
         masterGainNode,
-        element: mediaElement
+        element: mediaElement,
+        silenceTimer: null,
+        isSkippingSilence: false
       };
 
       reconnectChain(chain);
       processedElements.set(mediaElement, chain);
 
-      // Apply initial playback speed
+      // Start Silence Detection Loop for this element
+      startSilenceDetector(chain);
+
       applyPlaybackSpeed(mediaElement);
 
       const resumeAudio = () => {
@@ -133,8 +140,53 @@
     }
   }
 
+  // Real-time Silence Detector & Speed Boost Engine
+  function startSilenceDetector(chain) {
+    const dataArray = new Float32Array(chain.analyserNode.fftSize);
+    let silentFrames = 0;
+
+    function checkSilence() {
+      if (!audioState.skipSilence || chain.element.paused || chain.element.ended || audioState.isMuted) {
+        if (chain.isSkippingSilence) {
+          chain.isSkippingSilence = false;
+          applyPlaybackSpeed(chain.element);
+        }
+        requestAnimationFrame(checkSilence);
+        return;
+      }
+
+      chain.analyserNode.getFloatTimeDomainData(dataArray);
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i] * dataArray[i];
+      }
+      let rms = Math.sqrt(sum / dataArray.length);
+
+      // Threshold: RMS < 0.005 is equivalent to ~ -46 dB silence
+      if (rms < 0.005) {
+        silentFrames++;
+        if (silentFrames > 12 && !chain.isSkippingSilence) { // ~200ms of sustained silence
+          chain.isSkippingSilence = true;
+          try {
+            chain.element.playbackRate = 2.5; // Fast-forward silence at 2.5x speed
+          } catch (e) {}
+        }
+      } else {
+        silentFrames = 0;
+        if (chain.isSkippingSilence) {
+          chain.isSkippingSilence = false;
+          applyPlaybackSpeed(chain.element); // Restore original sound speed
+        }
+      }
+
+      requestAnimationFrame(checkSilence);
+    }
+
+    requestAnimationFrame(checkSilence);
+  }
+
   function applyPlaybackSpeed(mediaElement) {
-    if (mediaElement && audioState.playbackSpeed && mediaElement.playbackRate !== audioState.playbackSpeed) {
+    if (mediaElement && audioState.playbackSpeed) {
       try {
         mediaElement.playbackRate = audioState.playbackSpeed;
       } catch (e) {}
@@ -153,12 +205,11 @@
       chain.gainNode.disconnect();
       chain.compressorNode.disconnect();
       chain.limiterNode.disconnect();
+      chain.analyserNode.disconnect();
       chain.masterGainNode.disconnect();
 
-      // Update Playback Speed
       applyPlaybackSpeed(chain.element);
 
-      // Update EQ Band Gains
       if (audioState.eqBands && audioState.eqBands.length === 5) {
         chain.eqNodes.forEach((node, idx) => {
           const val = audioState.eqBands[idx] || 0;
@@ -166,7 +217,6 @@
         });
       }
 
-      // Update Panner Balance
       if (chain.pannerNode) {
         const panVal = Math.max(-1, Math.min(1, audioState.panBalance || 0));
         chain.pannerNode.pan.setValueAtTime(panVal, ctx.currentTime);
@@ -176,20 +226,18 @@
       const targetVolume = isMuted ? 0 : audioState.volume;
       const boostFactor = targetVolume / 100;
 
-      // Determine if active processing is needed
       const hasEQ = audioState.eqBands && audioState.eqBands.some(v => v !== 0);
       const hasNightMode = audioState.nightMode;
       const hasPan = audioState.panBalance !== 0;
+      const hasSilenceSkip = audioState.skipSilence;
 
-      // RULE 1: Direct Passthrough if 100% volume, no EQ, no NightMode, no Pan
-      if (targetVolume <= 100 && !audioState.antiDistortion && !hasEQ && !hasNightMode && !hasPan) {
+      if (targetVolume <= 100 && !audioState.antiDistortion && !hasEQ && !hasNightMode && !hasPan && !hasSilenceSkip) {
         chain.gainNode.gain.setValueAtTime(boostFactor, ctx.currentTime);
         chain.source.connect(chain.gainNode);
         chain.gainNode.connect(ctx.destination);
         return;
       }
 
-      // Chain Setup: Source -> Subsonic -> EQ1..5 -> Panner -> Gain -> Compressor -> Limiter -> Master -> Destination
       let lastNode = chain.source;
 
       lastNode.connect(chain.subsonicFilter);
@@ -209,9 +257,7 @@
       lastNode.connect(chain.gainNode);
       lastNode = chain.gainNode;
 
-      // Configure Compressor based on NightMode or Boost level
       if (hasNightMode) {
-        // Night Mode: Strong compression for cinematic dialogue clarity
         chain.compressorNode.threshold.setValueAtTime(-20, ctx.currentTime);
         chain.compressorNode.knee.setValueAtTime(15, ctx.currentTime);
         chain.compressorNode.ratio.setValueAtTime(12, ctx.currentTime);
@@ -234,6 +280,9 @@
 
       lastNode.connect(chain.limiterNode);
       lastNode = chain.limiterNode;
+
+      // Connect AnalyserNode for Real-Time Silence Detection
+      lastNode.connect(chain.analyserNode);
 
       const t = Math.min(1.0, Math.max(0, targetVolume - 100) / 900);
       const masterScale = 1.0 / (1.0 + t * 0.35);
@@ -262,12 +311,13 @@
     const domain = window.location.hostname;
     chrome.storage.local.get([
       'globalVolume', 'antiDistortion', 'isMuted', 'siteVolumes',
-      'nightMode', 'isMono', 'panBalance', 'playbackSpeed', 'eqBands'
+      'nightMode', 'skipSilence', 'isMono', 'panBalance', 'playbackSpeed', 'eqBands'
     ], (res) => {
       if (res.globalVolume !== undefined) audioState.volume = res.globalVolume;
       if (res.antiDistortion !== undefined) audioState.antiDistortion = res.antiDistortion;
       if (res.isMuted !== undefined) audioState.isMuted = res.isMuted;
       if (res.nightMode !== undefined) audioState.nightMode = res.nightMode;
+      if (res.skipSilence !== undefined) audioState.skipSilence = res.skipSilence;
       if (res.isMono !== undefined) audioState.isMono = res.isMono;
       if (res.panBalance !== undefined) audioState.panBalance = res.panBalance;
       if (res.playbackSpeed !== undefined) audioState.playbackSpeed = res.playbackSpeed;
@@ -325,6 +375,7 @@
         antiDistortion: audioState.antiDistortion,
         isMuted: audioState.isMuted,
         nightMode: audioState.nightMode,
+        skipSilence: audioState.skipSilence,
         isMono: audioState.isMono,
         panBalance: audioState.panBalance,
         playbackSpeed: audioState.playbackSpeed,
@@ -347,6 +398,14 @@
       scanAndApply();
       notifyBadge();
       sendResponse({ status: "OK", volume: audioState.volume });
+      return true;
+    }
+
+    if (message.type === "SET_SKIP_SILENCE") {
+      audioState.skipSilence = !!message.enabled;
+      chrome.storage.local.set({ skipSilence: audioState.skipSilence });
+      scanAndApply();
+      sendResponse({ status: "OK", skipSilence: audioState.skipSilence });
       return true;
     }
 
@@ -400,7 +459,6 @@
       return true;
     }
 
-    // Keyboard Shortcuts handler
     if (message.type === "SHORTCUT_COMMAND") {
       if (message.command === "increase_volume") {
         audioState.volume = Math.min(1000, audioState.volume + 10);
