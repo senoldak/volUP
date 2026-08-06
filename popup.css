@@ -1,4 +1,4 @@
-/* popup.css - volUP Studio Edition Styling System (v1.4.2 Theme Engine Fix) */
+/* popup.css - volUP Studio Edition Styling System (v1.4.5) */
 
 :root {
   --bg-main: #0b0f19;
@@ -174,26 +174,6 @@ body {
   display: flex;
 }
 
-/* Safety Guard Badge */
-.safety-guard-badge {
-  display: none;
-  align-items: center;
-  gap: 4px;
-  font-size: 8px;
-  font-weight: 800;
-  color: var(--accent-amber);
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  padding: 2px 6px;
-  border-radius: 10px;
-  margin-bottom: 6px;
-  letter-spacing: 0.5px;
-}
-
-.safety-guard-badge.active {
-  display: flex;
-}
-
 /* Volume Display Card */
 .volume-display-card {
   background: var(--bg-card);
@@ -207,10 +187,7 @@ body {
   position: relative;
 }
 
-/* ==========================================================================
-   DRAMATICALLY DISTINCT VISUALIZER THEMES (WAVES, PULSE, LED)
-   ========================================================================== */
-
+/* VISUALIZER FX THEMES */
 .visualizer {
   display: flex;
   align-items: flex-end;
@@ -229,7 +206,6 @@ body {
   opacity: 0.85;
 }
 
-/* THEME 1: WAVES THEME (Neon Purple Vertical Bouncing Bars) */
 .visualizer.waves-theme .bar {
   background: linear-gradient(180deg, var(--accent-cyan) 0%, var(--accent-purple) 100%);
   box-shadow: 0 0 6px rgba(139, 92, 246, 0.4);
@@ -238,7 +214,6 @@ body {
   animation: bounceWave 0.5s infinite alternate ease-in-out;
 }
 
-/* THEME 2: PULSE THEME (Glowing Pulsating Ring FX) */
 .visualizer.pulse-theme {
   height: 28px;
   align-items: center;
@@ -254,7 +229,6 @@ body {
   animation: pulseRing 0.4s infinite alternate ease-in-out;
 }
 
-/* THEME 3: LED THEME (Classic Stüdyo Green-Amber-Red Segmented VU Meter) */
 .visualizer.led-theme .bar {
   width: 6px;
   border-radius: 1px;
@@ -830,7 +804,6 @@ input:checked + .toggle-slider:before { transform: translateX(16px); }
   min-width: 0;
 }
 
-/* MIXER FAVICON - FIXED SMALL SIZE */
 .mixer-favicon {
   width: 16px;
   height: 16px;
@@ -848,7 +821,7 @@ input:checked + .toggle-slider:before { transform: translateX(16px); }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 140px;
+  max-width: 110px;
 }
 
 .tab-audio-badge {
@@ -858,6 +831,29 @@ input:checked + .toggle-slider:before { transform: translateX(16px); }
   background: rgba(16, 185, 129, 0.15);
   padding: 1px 4px;
   border-radius: 4px;
+}
+
+.mixer-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tab-mute-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--bg-card-border);
+  color: var(--text-main);
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tab-mute-btn.muted {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: var(--accent-red);
+  color: var(--accent-red);
 }
 
 .site-domain-name {

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "volUP - Smart Volume Booster, 10-Band EQ & Audio Engine",
-  "version": "1.4.0",
-  "description": "Boost volume up to 1000%, 10-band Studio EQ, Domain Rules Manager, Multi-Tab Audio Mixer, Import/Export & Anti-Distortion.",
+  "version": "1.4.5",
+  "description": "Boost volume up to 1000%, 10-band Studio EQ, Domain Rules Manager, Multi-Tab Audio Mixer with Tab Mute, Import/Export & Anti-Distortion.",
   "permissions": [
     "activeTab",
     "storage",

@@ -1,4 +1,4 @@
-// popup.js - UI Controller for volUP (v1.4.4 Clean Status Badge)
+// popup.js - UI Controller for volUP (v1.4.5 Tab Mute Feature)
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Navigation Tabs
@@ -420,6 +420,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         item.appendChild(info);
 
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'mixer-actions';
+
+        // Tab Mute / Unmute Button
+        const isTabMuted = tab.mutedInfo && tab.mutedInfo.muted;
+        const muteTabBtn = document.createElement('button');
+        muteTabBtn.className = 'tab-mute-btn';
+        muteTabBtn.textContent = isTabMuted ? '🔇 Muted' : '🔊 Mute';
+        if (isTabMuted) muteTabBtn.classList.add('muted');
+
+        muteTabBtn.addEventListener('click', () => {
+          chrome.runtime.sendMessage({
+            type: "TOGGLE_TAB_MUTE",
+            tabId: tab.id,
+            muted: !isTabMuted
+          }, () => {
+            loadMixerTabs();
+          });
+        });
+        actionsDiv.appendChild(muteTabBtn);
+
+        // Switch to Tab Button
         const focusBtn = document.createElement('button');
         focusBtn.className = 'eq-preset-btn';
         focusBtn.textContent = tab.active ? 'Active' : 'Switch';
@@ -427,8 +449,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         focusBtn.addEventListener('click', () => {
           chrome.tabs.update(tab.id, { active: true });
         });
+        actionsDiv.appendChild(focusBtn);
 
-        item.appendChild(focusBtn);
+        item.appendChild(actionsDiv);
         mixerList.appendChild(item);
       });
     });
