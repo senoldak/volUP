@@ -1,38 +1,38 @@
-# 🔊 volUP - Smart Volume Booster & Anti-Distortion Chrome Extension
+# 🔊 volUP - Smart Volume Booster, 5-Band EQ & Pro Audio Engine
 
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-brightgreen.svg)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![Web Audio API](https://img.shields.io/badge/API-Web%20Audio%20API-blue.svg)](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
-[![License](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.2.0-purple.svg)](https://github.com/senoldak/volUP)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**volUP** is a high-performance, modern Google Chrome extension that amplifies web audio up to **1000% (10x)** while preventing digital clipping, distortion, and speaker crackling. Built with Manifest V3 and the Web Audio API, **volUP** integrates dynamic range compression and peak soft-limiting to deliver loud, crisp, and studio-clean sound across video and audio streaming platforms (YouTube, Twitch, Netflix, Spotify Web, sound feeds, and more).
-
----
-
-## ✨ Features
-
-- **🚀 Up to 1000% (10x) Turbo Boost:** Safely push media volume far beyond the native 100% boundary.
-- **🛡️ Smart Anti-Distortion Engine:** Built-in `DynamicsCompressorNode` and `WaveShaperNode` soft-limiter prevent clipping distortion, crackling, and harsh audio spikes even at maximum gain.
-- **🎛️ Dynamic Audio Processing Chain:**
-  $$\text{MediaSource} \longrightarrow \text{Subsonic Filter} \longrightarrow \text{Gain (0--1000\%)} \longrightarrow \text{Compressor} \longrightarrow \text{Soft Limiter} \longrightarrow \text{Destination}$$
-- **🎨 Glassmorphism & Modern UI:** Sleek dark-mode popup interface with dynamic visualizer animation, vibrant color-coded loudness feedback, slider controls, and quick preset buttons (%100, %300, %500, %800, %1000 TURBO).
-- **🌐 Per-Site Volume Persistence:** Automatically remembers custom volume levels for specific domains (e.g., set YouTube to 250% and keep it saved).
-- **⚡ SPA & Dynamic Content Support:** Utilizes `MutationObserver` to automatically detect newly injected video/audio elements in Single Page Applications (YouTube SPA, Twitch streams, dynamic video players).
-- **🔇 One-Click Mute & Reset:** Instant toggle to mute audio or reset back to default 100% volume.
-- **🏷️ Real-Time Badge Feedback:** Extension badge displays current active boost level (e.g., `500%`, `OFF`) directly on the extension icon.
+**volUP v1.2** is a feature-packed, high-performance Google Chrome extension that amplifies web audio up to **1000% (10x)** with zero distortion, features a **5-Band Graphic Equalizer**, **Night Mode** (Cinematic Dialogue Normalizer), **Left/Right Channel Balance**, **Playback Speed Control**, and **Global Keyboard Shortcuts**.
 
 ---
 
-## 🛠️ Architecture & Technical Details
+## ✨ Features (v1.2.0)
 
-### Audio Pipeline Architecture
+- **🚀 Up to 1000% (10x) Turbo Boost:** Amplifies low-volume audio feeds safely beyond standard limits.
+- **🎛️ 5-Band Graphic Equalizer:** Custom frequency adjustments (60Hz, 250Hz, 1kHz, 4kHz, 12kHz) with one-click presets (**Flat**, **Bass Boost**, **Vocal Clarity**, **Movie Mode**, **Pop/Rock**).
+- **🛡️ Smart Anti-Distortion & Soft Limiter:** Dynamic compression and continuous soft-clipping prevent cackle and speaker damage at high volume.
+- **🌙 Night Mode (Cinematic Normalizer):** Compresses dynamic range gaps in movies—lifting quiet dialogue while taming loud explosions.
+- **🎧 Left / Right Channel Balance & Mono Support:** Precise L/R stereo balancing for headphones and accessibility.
+- **⚡ Playback Speed Control:** Variable speed slider (0.5x to 3.0x) for lectures, podcasts, and videos.
+- **⌨️ Global Keyboard Shortcuts:**
+  - `Alt + Shift + Up`: Increase Volume (+10%)
+  - `Alt + Shift + Down`: Decrease Volume (-10%)
+  - `Alt + Shift + M`: Toggle Mute
+- **🌐 Per-Site Memory:** Automatically remembers your custom volume and audio settings for individual websites.
+- **🔒 100% Privacy Focused:** Zero tracking, zero telemetry, local storage only ([Privacy Policy](PRIVACY.md)).
 
-Standard volume boosters multiply linear gain directly, causing high peaks to breach $0\text{ dBFS}$ digital headroom, resulting in harsh square-wave clipping distortion. **volUP** solves this by inserting a two-stage dynamic conditioning layer before speaker output:
+---
+
+## 🛠️ Audio DSP Pipeline
 
 ```
-+------------------+     +--------------------+     +-------------------+     +----------------------+     +------------------+     +---------------------+
-|  Media Element   | --> |  Subsonic Filter   | --> |     Gain Node     | --> | Dynamics Compressor  | --> |   Soft Limiter   | --> | Audio Destination   |
-| (<video>/<audio>)|     | (20Hz Highpass)    |     | (0% - 1000% gain) |     | (-6dB to -18dB ratio)|     | (2x WaveShaper)  |     | (Speakers/Headphones|
-+------------------+     +--------------------+     +-------------------+     +----------------------+     +------------------+     +---------------------+
++------------------+     +--------------------+     +-------------------+     +----------------------+     +-------------------+     +------------------+     +-------------------+     +---------------------+
+|  Media Element   | --> |  Subsonic Filter   | --> |   5-Band EQ       | --> |    Stereo Panner     | --> |     Gain Node     | --> |    Compressor    | --> |   Soft Limiter    | --> | Audio Destination   |
+| (<video>/<audio>)|     | (20Hz Highpass)    |     | (60Hz to 12kHz)   |     | (L/R Balance)        |     | (0% - 1000% gain) |     | (Anti-Distortion)|     | (2x WaveShaper)   |     | (Speakers/Headphones|
++------------------+     +--------------------+     +-------------------+     +----------------------+     +-------------------+     +------------------+     +-------------------+     +---------------------+
 ```
 
 ---
@@ -47,13 +47,14 @@ Standard volume boosters multiply linear gain directly, causing high peaks to br
    ```
    chrome://extensions
    ```
-3. Enable **Developer mode** using the toggle switch in the top-right corner.
+3. Enable **Developer mode** in the top-right corner.
 4. Click **Load unpacked** (Paketlenmemiş öğe yükle).
-5. Select the project directory (`volUP`).
+5. Select the `volUP` directory.
 6. Pin **volUP** to your Chrome toolbar and enjoy loud, distortion-free sound!
 
 ---
 
-## 📜 License
+## 📜 Privacy & License
 
-Distributed under the **MIT License**. See `LICENSE` for more information.
+- Read our full [Privacy Policy](PRIVACY.md).
+- Distributed under the **MIT License**.

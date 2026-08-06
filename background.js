@@ -1,11 +1,16 @@
-// background.js - Service Worker for volUP Extension
+// background.js - Service Worker for volUP Extension (v1.2.0)
 
 chrome.runtime.onInstalled.addListener(() => {
-  console.log("volUP Volume Booster extension installed.");
+  console.log("volUP Volume Booster & EQ extension installed.");
   chrome.storage.local.set({
     globalVolume: 100,
     antiDistortion: true,
-    isMuted: false
+    isMuted: false,
+    nightMode: false,
+    isMono: false,
+    panBalance: 0,
+    playbackSpeed: 1.0,
+    eqBands: [0, 0, 0, 0, 0] // 60Hz, 250Hz, 1kHz, 4kHz, 12kHz in dB (-12 to +12)
   });
 });
 
@@ -27,4 +32,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
   }
   return true;
+});
+
+// Listen for global keyboard shortcuts (Commands API)
+chrome.commands.onCommand.addListener(async (command) => {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab && tab.id) {
+    chrome.tabs.sendMessage(tab.id, { type: "SHORTCUT_COMMAND", command });
+  }
 });

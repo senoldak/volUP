@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>volUP - Volume Booster</title>
+  <title>volUP - Volume Booster & Audio Engine</title>
   <link rel="stylesheet" href="popup.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,7 +15,7 @@
     <header class="header">
       <div class="brand">
         <div class="logo-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
             <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
             <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
@@ -23,105 +23,256 @@
         </div>
         <div class="brand-text">
           <span class="title">volUP</span>
-          <span class="subtitle">Sound Booster</span>
+          <span class="subtitle">Audio Engine v1.2</span>
         </div>
       </div>
       <div class="domain-badge" id="domainDisplay">Active Tab</div>
     </header>
 
-    <!-- Main Volume Display -->
-    <section class="volume-display-card">
-      <div class="visualizer" id="visualizer">
-        <span class="bar bar-1"></span>
-        <span class="bar bar-2"></span>
-        <span class="bar bar-3"></span>
-        <span class="bar bar-4"></span>
-        <span class="bar bar-5"></span>
-        <span class="bar bar-6"></span>
-      </div>
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="nav-tab active" data-tab="tab-volume">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+        </svg>
+        Volume
+      </button>
+      <button class="nav-tab" data-tab="tab-eq">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="4" y1="21" x2="4" y2="14"></line>
+          <line x1="4" y1="10" x2="4" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12" y2="3"></line>
+          <line x1="20" y1="21" x2="20" y2="16"></line>
+          <line x1="20" y1="12" x2="20" y2="3"></line>
+          <line x1="1" y1="14" x2="7" y2="14"></line>
+          <line x1="9" y1="8" x2="15" y2="8"></line>
+          <line x1="17" y1="16" x2="23" y2="16"></line>
+        </svg>
+        5-Band EQ
+      </button>
+      <button class="nav-tab" data-tab="tab-tools">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        Tools
+      </button>
+    </nav>
 
-      <div class="percentage-wrapper">
-        <span class="volume-value" id="volumeValue">100</span>
-        <span class="percent-symbol">%</span>
-      </div>
+    <!-- TAB 1: VOLUME & BOOST -->
+    <main class="tab-content active" id="tab-volume">
+      <!-- Main Volume Display -->
+      <section class="volume-display-card">
+        <div class="visualizer" id="visualizer">
+          <span class="bar bar-1"></span>
+          <span class="bar bar-2"></span>
+          <span class="bar bar-3"></span>
+          <span class="bar bar-4"></span>
+          <span class="bar bar-5"></span>
+          <span class="bar bar-6"></span>
+        </div>
 
-      <div class="status-indicator" id="statusIndicator">
-        <span class="status-dot"></span>
-        <span class="status-text" id="statusText">Normal Audio Level</span>
-      </div>
-    </section>
+        <div class="percentage-wrapper">
+          <span class="volume-value" id="volumeValue">100</span>
+          <span class="percent-symbol">%</span>
+        </div>
 
-    <!-- Controls -->
-    <section class="controls-section">
-      <!-- Slider (0% to 1000%) -->
-      <div class="slider-container">
-        <input type="range" id="volumeSlider" min="0" max="1000" step="5" value="100" class="volume-slider">
-        <div class="slider-track-fill" id="sliderFill"></div>
-      </div>
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span class="status-text" id="statusText">Normal Audio Level</span>
+        </div>
+      </section>
 
-      <!-- Presets -->
-      <div class="presets-grid">
-        <button class="preset-btn" data-preset="100">%100</button>
-        <button class="preset-btn" data-preset="300">%300</button>
-        <button class="preset-btn" data-preset="500">%500</button>
-        <button class="preset-btn" data-preset="800">%800</button>
-        <button class="preset-btn max-btn" data-preset="1000">%1000 TURBO</button>
-      </div>
+      <!-- Controls -->
+      <section class="controls-section">
+        <div class="slider-container">
+          <input type="range" id="volumeSlider" min="0" max="1000" step="5" value="100" class="volume-slider">
+          <div class="slider-track-fill" id="sliderFill"></div>
+        </div>
 
-      <!-- Quick Action Buttons -->
-      <div class="actions-row">
-        <button class="action-btn mute-btn" id="muteBtn">
-          <svg class="icon-mute" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-            <line x1="23" y1="9" x2="17" y2="15"></line>
-            <line x1="17" y1="9" x2="23" y2="15"></line>
-          </svg>
-          <span id="muteBtnText">Mute</span>
-        </button>
+        <div class="presets-grid">
+          <button class="preset-btn" data-preset="100">%100</button>
+          <button class="preset-btn" data-preset="300">%300</button>
+          <button class="preset-btn" data-preset="500">%500</button>
+          <button class="preset-btn" data-preset="800">%800</button>
+          <button class="preset-btn max-btn" data-preset="1000">%1000 TURBO</button>
+        </div>
 
-        <button class="action-btn reset-btn" id="resetBtn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-            <path d="M3 3v5h5"></path>
-          </svg>
-          Reset
-        </button>
-      </div>
-    </section>
+        <div class="actions-row">
+          <button class="action-btn mute-btn" id="muteBtn">
+            <svg class="icon-mute" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <line x1="23" y1="9" x2="17" y2="15"></line>
+              <line x1="17" y1="9" x2="23" y2="15"></line>
+            </svg>
+            <span id="muteBtnText">Mute</span>
+          </button>
 
-    <!-- Settings / Anti-Distortion Card -->
-    <section class="settings-card">
-      <div class="setting-row">
-        <div class="setting-info">
-          <div class="setting-title">
-            <span>Smart Anti-Distortion</span>
-            <span class="badge-pro">SMART</span>
+          <button class="action-btn reset-btn" id="resetBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+              <path d="M3 3v5h5"></path>
+            </svg>
+            Reset
+          </button>
+        </div>
+      </section>
+
+      <!-- Toggles Card -->
+      <section class="settings-card">
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-title">
+              <span>Smart Anti-Distortion</span>
+              <span class="badge-pro">SMART</span>
+            </div>
+            <div class="setting-desc">Prevents clipping and crackling at high boost</div>
           </div>
-          <div class="setting-desc">Prevents clipping and crackling at high volume levels</div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="antiDistortionToggle" checked>
+            <span class="toggle-slider"></span>
+          </label>
         </div>
-        <label class="toggle-switch">
-          <input type="checkbox" id="antiDistortionToggle" checked>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
 
-      <div class="setting-divider"></div>
+        <div class="setting-divider"></div>
 
-      <div class="setting-row">
-        <div class="setting-info">
-          <div class="setting-title">Remember for this site</div>
-          <div class="setting-desc">Automatically restores saved volume on revisit</div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-title">
+              <span>Night Mode</span>
+              <span class="badge-pro">CINEMA</span>
+            </div>
+            <div class="setting-desc">Normalizes quiet dialogue and loud explosions</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="nightModeToggle">
+            <span class="toggle-slider"></span>
+          </label>
         </div>
-        <label class="toggle-switch">
-          <input type="checkbox" id="rememberDomainToggle">
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </section>
+
+        <div class="setting-divider"></div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-title">Remember for this site</div>
+            <div class="setting-desc">Restores volume on revisit</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="rememberDomainToggle">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </section>
+    </main>
+
+    <!-- TAB 2: 5-BAND EQUALIZER -->
+    <main class="tab-content" id="tab-eq">
+      <section class="eq-card">
+        <div class="eq-header">
+          <span class="eq-title">Graphic Equalizer</span>
+          <button class="reset-eq-btn" id="resetEqBtn">Reset EQ</button>
+        </div>
+
+        <!-- EQ Presets -->
+        <div class="eq-presets-row">
+          <button class="eq-preset-btn active" data-eq="flat">Flat</button>
+          <button class="eq-preset-btn" data-eq="bass">Bass Boost</button>
+          <button class="eq-preset-btn" data-eq="vocal">Vocal</button>
+          <button class="eq-preset-btn" data-eq="movie">Movie</button>
+          <button class="eq-preset-btn" data-eq="pop">Pop/Rock</button>
+        </div>
+
+        <!-- EQ Sliders Grid -->
+        <div class="eq-sliders-grid">
+          <div class="eq-band">
+            <span class="eq-db" id="eqDb-0">0dB</span>
+            <input type="range" class="eq-slider" data-band="0" min="-12" max="12" step="1" value="0" orient="vertical">
+            <span class="eq-freq">60Hz</span>
+          </div>
+          <div class="eq-band">
+            <span class="eq-db" id="eqDb-1">0dB</span>
+            <input type="range" class="eq-slider" data-band="1" min="-12" max="12" step="1" value="0" orient="vertical">
+            <span class="eq-freq">250Hz</span>
+          </div>
+          <div class="eq-band">
+            <span class="eq-db" id="eqDb-2">0dB</span>
+            <input type="range" class="eq-slider" data-band="2" min="-12" max="12" step="1" value="0" orient="vertical">
+            <span class="eq-freq">1kHz</span>
+          </div>
+          <div class="eq-band">
+            <span class="eq-db" id="eqDb-3">0dB</span>
+            <input type="range" class="eq-slider" data-band="3" min="-12" max="12" step="1" value="0" orient="vertical">
+            <span class="eq-freq">4kHz</span>
+          </div>
+          <div class="eq-band">
+            <span class="eq-db" id="eqDb-4">0dB</span>
+            <input type="range" class="eq-slider" data-band="4" min="-12" max="12" step="1" value="0" orient="vertical">
+            <span class="eq-freq">12kHz</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- TAB 3: AUDIO TOOLS & SHORTCUTS -->
+    <main class="tab-content" id="tab-tools">
+      <section class="tools-card">
+        <!-- Balance Slider -->
+        <div class="tool-group">
+          <div class="tool-label-row">
+            <span>Left / Right Balance</span>
+            <span class="tool-value" id="panValue">Center</span>
+          </div>
+          <div class="balance-slider-wrapper">
+            <span class="side-label">L</span>
+            <input type="range" id="panSlider" min="-1" max="1" step="0.1" value="0" class="tool-slider">
+            <span class="side-label">R</span>
+          </div>
+        </div>
+
+        <div class="setting-divider"></div>
+
+        <!-- Speed Slider -->
+        <div class="tool-group">
+          <div class="tool-label-row">
+            <span>Playback Speed</span>
+            <span class="tool-value" id="speedValue">1.0x</span>
+          </div>
+          <input type="range" id="speedSlider" min="0.5" max="3.0" step="0.1" value="1.0" class="tool-slider">
+          <div class="speed-presets">
+            <button class="speed-btn" data-speed="0.8">0.8x</button>
+            <button class="speed-btn active" data-speed="1.0">1.0x</button>
+            <button class="speed-btn" data-speed="1.25">1.25x</button>
+            <button class="speed-btn" data-speed="1.5">1.5x</button>
+            <button class="speed-btn" data-speed="2.0">2.0x</button>
+          </div>
+        </div>
+
+        <div class="setting-divider"></div>
+
+        <!-- Hotkeys info -->
+        <div class="hotkeys-info">
+          <span class="hotkeys-title">Keyboard Shortcuts</span>
+          <div class="hotkey-row">
+            <span class="key-badge">Alt + Shift + Up</span>
+            <span class="key-desc">Volume +10%</span>
+          </div>
+          <div class="hotkey-row">
+            <span class="key-badge">Alt + Shift + Down</span>
+            <span class="key-desc">Volume -10%</span>
+          </div>
+          <div class="hotkey-row">
+            <span class="key-badge">Alt + Shift + M</span>
+            <span class="key-desc">Toggle Mute</span>
+          </div>
+        </div>
+      </section>
+    </main>
 
     <!-- Footer -->
     <footer class="footer">
-      <span>volUP v1.1 • HD Turbo Audio Engine</span>
+      <span>volUP v1.2 • Pro Audio Engine</span>
     </footer>
   </div>
 

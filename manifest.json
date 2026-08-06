@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "volUP - Smart Volume Booster & Anti-Distortion",
-  "version": "1.1.0",
-  "description": "Boost web volume up to 1000% (10x) with crystal-clear audio quality and smart anti-distortion.",
+  "name": "volUP - Smart Volume Booster, EQ & Audio Engine",
+  "version": "1.2.0",
+  "description": "Boost web volume up to 1000%, 5-band Graphic EQ, Anti-Distortion, Night Mode, Mono & Speed controls.",
   "permissions": [
     "activeTab",
     "storage",
@@ -30,6 +30,29 @@
       "all_frames": true
     }
   ],
+  "commands": {
+    "increase_volume": {
+      "suggested_key": {
+        "default": "Alt+Shift+Up",
+        "mac": "Alt+Shift+Up"
+      },
+      "description": "Increase Volume (+10%)"
+    },
+    "decrease_volume": {
+      "suggested_key": {
+        "default": "Alt+Shift+Down",
+        "mac": "Alt+Shift+Down"
+      },
+      "description": "Decrease Volume (-10%)"
+    },
+    "toggle_mute": {
+      "suggested_key": {
+        "default": "Alt+Shift+M",
+        "mac": "Alt+Shift+M"
+      },
+      "description": "Toggle Mute"
+    }
+  },
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

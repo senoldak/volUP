@@ -1,4 +1,4 @@
-// content.js - Pure Transparent & Zero-Distortion Audio Engine for volUP (Supports 0% - 1000%)
+// content.js - Complete Multi-Feature Audio Engine for volUP (v1.2.0)
 
 (function () {
   if (window.volUPInjected) return;
@@ -7,7 +7,12 @@
   let audioState = {
     volume: 100, // 0 to 1000
     antiDistortion: true,
-    isMuted: false
+    isMuted: false,
+    nightMode: false,
+    isMono: false,
+    panBalance: 0, // -1.0 (Left) to +1.0 (Right)
+    playbackSpeed: 1.0, // 0.5 to 3.0
+    eqBands: [0, 0, 0, 0, 0] // 60Hz, 250Hz, 1kHz, 4kHz, 12kHz gain in dB (-12 to +12)
   };
 
   const processedElements = new WeakMap();
@@ -26,13 +31,11 @@
     return audioCtx;
   }
 
-  // Smooth transparent soft-clipping curve (Active only on extreme peaks above 0.85)
   function createTransparentLimiterCurve() {
     const n_samples = 65536;
     const curve = new Float32Array(n_samples);
-
     for (let i = 0; i < n_samples; ++i) {
-      let x = (i * 2) / n_samples - 1; // -1.0 to +1.0
+      let x = (i * 2) / n_samples - 1;
       if (Math.abs(x) < 0.85) {
         curve[i] = x;
       } else {
@@ -66,16 +69,34 @@
 
       const source = ctx.createMediaElementSource(mediaElement);
       
-      // Subsonic Filter (20Hz highpass cut - leaves bass 100% untouched)
+      // Subsonic Highpass Filter (20Hz)
       const subsonicFilter = ctx.createBiquadFilter();
       subsonicFilter.type = 'highpass';
       subsonicFilter.frequency.setValueAtTime(20, ctx.currentTime);
       subsonicFilter.Q.setValueAtTime(0.5, ctx.currentTime);
 
+      // 5-Band Equalizer Nodes (60Hz, 250Hz, 1kHz, 4kHz, 12kHz)
+      const eqFrequencies = [60, 250, 1000, 4000, 12000];
+      const eqTypes = ['lowshelf', 'peaking', 'peaking', 'peaking', 'highshelf'];
+      const eqNodes = eqFrequencies.map((freq, idx) => {
+        const filter = ctx.createBiquadFilter();
+        filter.type = eqTypes[idx];
+        filter.frequency.setValueAtTime(freq, ctx.currentTime);
+        filter.Q.setValueAtTime(1.0, ctx.currentTime);
+        filter.gain.setValueAtTime(0, ctx.currentTime);
+        return filter;
+      });
+
+      // Stereo Panner Node
+      let pannerNode = null;
+      if (ctx.createStereoPanner) {
+        pannerNode = ctx.createStereoPanner();
+        pannerNode.pan.setValueAtTime(0, ctx.currentTime);
+      }
+
       const gainNode = ctx.createGain();
       const compressorNode = ctx.createDynamicsCompressor();
       const limiterNode = ctx.createWaveShaper();
-      
       limiterNode.curve = createTransparentLimiterCurve();
       limiterNode.oversample = '2x';
 
@@ -84,6 +105,8 @@
       const chain = {
         source,
         subsonicFilter,
+        eqNodes,
+        pannerNode,
         gainNode,
         compressorNode,
         limiterNode,
@@ -94,15 +117,27 @@
       reconnectChain(chain);
       processedElements.set(mediaElement, chain);
 
+      // Apply initial playback speed
+      applyPlaybackSpeed(mediaElement);
+
       const resumeAudio = () => {
         if (ctx.state === 'suspended') {
           ctx.resume();
         }
+        applyPlaybackSpeed(mediaElement);
       };
       mediaElement.addEventListener('play', resumeAudio, { passive: true });
 
     } catch (err) {
       console.warn("volUP: Failed to attach AudioContext", err);
+    }
+  }
+
+  function applyPlaybackSpeed(mediaElement) {
+    if (mediaElement && audioState.playbackSpeed && mediaElement.playbackRate !== audioState.playbackSpeed) {
+      try {
+        mediaElement.playbackRate = audioState.playbackSpeed;
+      } catch (e) {}
     }
   }
 
@@ -113,55 +148,98 @@
     try {
       chain.source.disconnect();
       chain.subsonicFilter.disconnect();
+      chain.eqNodes.forEach(n => n.disconnect());
+      if (chain.pannerNode) chain.pannerNode.disconnect();
       chain.gainNode.disconnect();
       chain.compressorNode.disconnect();
       chain.limiterNode.disconnect();
       chain.masterGainNode.disconnect();
 
+      // Update Playback Speed
+      applyPlaybackSpeed(chain.element);
+
+      // Update EQ Band Gains
+      if (audioState.eqBands && audioState.eqBands.length === 5) {
+        chain.eqNodes.forEach((node, idx) => {
+          const val = audioState.eqBands[idx] || 0;
+          node.gain.setValueAtTime(val, ctx.currentTime);
+        });
+      }
+
+      // Update Panner Balance
+      if (chain.pannerNode) {
+        const panVal = Math.max(-1, Math.min(1, audioState.panBalance || 0));
+        chain.pannerNode.pan.setValueAtTime(panVal, ctx.currentTime);
+      }
+
       const isMuted = audioState.isMuted;
       const targetVolume = isMuted ? 0 : audioState.volume;
       const boostFactor = targetVolume / 100;
 
-      // RULE 1: At 100% volume or lower, DIRECT PASSTHROUGH (100% Bit-exact original sound)
-      if (targetVolume <= 100 || !audioState.antiDistortion) {
+      // Determine if active processing is needed
+      const hasEQ = audioState.eqBands && audioState.eqBands.some(v => v !== 0);
+      const hasNightMode = audioState.nightMode;
+      const hasPan = audioState.panBalance !== 0;
+
+      // RULE 1: Direct Passthrough if 100% volume, no EQ, no NightMode, no Pan
+      if (targetVolume <= 100 && !audioState.antiDistortion && !hasEQ && !hasNightMode && !hasPan) {
         chain.gainNode.gain.setValueAtTime(boostFactor, ctx.currentTime);
         chain.source.connect(chain.gainNode);
         chain.gainNode.connect(ctx.destination);
         return;
       }
 
-      // RULE 2: Above 100% volume with Anti-Distortion enabled
-      // Smooth dynamic scaling up to 1000% (10x boost)
-      const t = Math.min(1.0, (targetVolume - 100) / 900); // 0.0 at 100%, 1.0 at 1000%
+      // Chain Setup: Source -> Subsonic -> EQ1..5 -> Panner -> Gain -> Compressor -> Limiter -> Master -> Destination
+      let lastNode = chain.source;
 
-      // Highpass frequency smoothly transitions from 20Hz up to 32Hz
-      const hpFreq = 20 + (t * 12);
-      chain.subsonicFilter.frequency.setValueAtTime(hpFreq, ctx.currentTime);
+      lastNode.connect(chain.subsonicFilter);
+      lastNode = chain.subsonicFilter;
 
-      // Compressor threshold transitions smoothly from -6dB to -18dB
-      const threshold = -6 - (t * 12);
-      // Compression ratio transitions smoothly from 3:1 to 10:1
-      const ratio = 3 + (t * 7);
+      chain.eqNodes.forEach(eqNode => {
+        lastNode.connect(eqNode);
+        lastNode = eqNode;
+      });
 
-      chain.compressorNode.threshold.setValueAtTime(threshold, ctx.currentTime);
-      chain.compressorNode.knee.setValueAtTime(24, ctx.currentTime);
-      chain.compressorNode.ratio.setValueAtTime(ratio, ctx.currentTime);
-      chain.compressorNode.attack.setValueAtTime(0.005, ctx.currentTime);
-      chain.compressorNode.release.setValueAtTime(0.15, ctx.currentTime);
+      if (chain.pannerNode) {
+        lastNode.connect(chain.pannerNode);
+        lastNode = chain.pannerNode;
+      }
 
-      // Main Gain Boost (up to 10x / 1000%)
       chain.gainNode.gain.setValueAtTime(boostFactor, ctx.currentTime);
+      lastNode.connect(chain.gainNode);
+      lastNode = chain.gainNode;
 
-      // Output master scaling to keep extreme audio clear
+      // Configure Compressor based on NightMode or Boost level
+      if (hasNightMode) {
+        // Night Mode: Strong compression for cinematic dialogue clarity
+        chain.compressorNode.threshold.setValueAtTime(-20, ctx.currentTime);
+        chain.compressorNode.knee.setValueAtTime(15, ctx.currentTime);
+        chain.compressorNode.ratio.setValueAtTime(12, ctx.currentTime);
+        chain.compressorNode.attack.setValueAtTime(0.003, ctx.currentTime);
+        chain.compressorNode.release.setValueAtTime(0.2, ctx.currentTime);
+      } else {
+        const t = Math.min(1.0, Math.max(0, targetVolume - 100) / 900);
+        const threshold = -6 - (t * 12);
+        const ratio = 3 + (t * 7);
+
+        chain.compressorNode.threshold.setValueAtTime(threshold, ctx.currentTime);
+        chain.compressorNode.knee.setValueAtTime(24, ctx.currentTime);
+        chain.compressorNode.ratio.setValueAtTime(ratio, ctx.currentTime);
+        chain.compressorNode.attack.setValueAtTime(0.005, ctx.currentTime);
+        chain.compressorNode.release.setValueAtTime(0.15, ctx.currentTime);
+      }
+
+      lastNode.connect(chain.compressorNode);
+      lastNode = chain.compressorNode;
+
+      lastNode.connect(chain.limiterNode);
+      lastNode = chain.limiterNode;
+
+      const t = Math.min(1.0, Math.max(0, targetVolume - 100) / 900);
       const masterScale = 1.0 / (1.0 + t * 0.35);
       chain.masterGainNode.gain.setValueAtTime(masterScale, ctx.currentTime);
 
-      // Chain: Source -> SubsonicFilter -> BoostGain -> Compressor -> Limiter -> MasterGain -> Destination
-      chain.source.connect(chain.subsonicFilter);
-      chain.subsonicFilter.connect(chain.gainNode);
-      chain.gainNode.connect(chain.compressorNode);
-      chain.compressorNode.connect(chain.limiterNode);
-      chain.limiterNode.connect(chain.masterGainNode);
+      lastNode.connect(chain.masterGainNode);
       chain.masterGainNode.connect(ctx.destination);
 
     } catch (e) {
@@ -182,10 +260,18 @@
 
   function init() {
     const domain = window.location.hostname;
-    chrome.storage.local.get(['globalVolume', 'antiDistortion', 'isMuted', 'siteVolumes'], (res) => {
+    chrome.storage.local.get([
+      'globalVolume', 'antiDistortion', 'isMuted', 'siteVolumes',
+      'nightMode', 'isMono', 'panBalance', 'playbackSpeed', 'eqBands'
+    ], (res) => {
       if (res.globalVolume !== undefined) audioState.volume = res.globalVolume;
       if (res.antiDistortion !== undefined) audioState.antiDistortion = res.antiDistortion;
       if (res.isMuted !== undefined) audioState.isMuted = res.isMuted;
+      if (res.nightMode !== undefined) audioState.nightMode = res.nightMode;
+      if (res.isMono !== undefined) audioState.isMono = res.isMono;
+      if (res.panBalance !== undefined) audioState.panBalance = res.panBalance;
+      if (res.playbackSpeed !== undefined) audioState.playbackSpeed = res.playbackSpeed;
+      if (res.eqBands !== undefined) audioState.eqBands = res.eqBands;
 
       if (res.siteVolumes && res.siteVolumes[domain] !== undefined) {
         audioState.volume = res.siteVolumes[domain];
@@ -238,6 +324,11 @@
         volume: audioState.volume,
         antiDistortion: audioState.antiDistortion,
         isMuted: audioState.isMuted,
+        nightMode: audioState.nightMode,
+        isMono: audioState.isMono,
+        panBalance: audioState.panBalance,
+        playbackSpeed: audioState.playbackSpeed,
+        eqBands: audioState.eqBands,
         domain: window.location.hostname
       });
       return true;
@@ -259,6 +350,40 @@
       return true;
     }
 
+    if (message.type === "SET_EQ") {
+      if (message.eqBands && message.eqBands.length === 5) {
+        audioState.eqBands = message.eqBands;
+        chrome.storage.local.set({ eqBands: audioState.eqBands });
+        scanAndApply();
+      }
+      sendResponse({ status: "OK", eqBands: audioState.eqBands });
+      return true;
+    }
+
+    if (message.type === "SET_NIGHT_MODE") {
+      audioState.nightMode = !!message.enabled;
+      chrome.storage.local.set({ nightMode: audioState.nightMode });
+      scanAndApply();
+      sendResponse({ status: "OK", nightMode: audioState.nightMode });
+      return true;
+    }
+
+    if (message.type === "SET_PAN") {
+      audioState.panBalance = Math.max(-1, Math.min(1, message.pan));
+      chrome.storage.local.set({ panBalance: audioState.panBalance });
+      scanAndApply();
+      sendResponse({ status: "OK", panBalance: audioState.panBalance });
+      return true;
+    }
+
+    if (message.type === "SET_SPEED") {
+      audioState.playbackSpeed = Math.max(0.5, Math.min(3.0, message.speed));
+      chrome.storage.local.set({ playbackSpeed: audioState.playbackSpeed });
+      scanAndApply();
+      sendResponse({ status: "OK", playbackSpeed: audioState.playbackSpeed });
+      return true;
+    }
+
     if (message.type === "SET_ANTI_DISTORTION") {
       audioState.antiDistortion = !!message.enabled;
       chrome.storage.local.set({ antiDistortion: audioState.antiDistortion });
@@ -272,6 +397,21 @@
       scanAndApply();
       notifyBadge();
       sendResponse({ status: "OK", isMuted: audioState.isMuted });
+      return true;
+    }
+
+    // Keyboard Shortcuts handler
+    if (message.type === "SHORTCUT_COMMAND") {
+      if (message.command === "increase_volume") {
+        audioState.volume = Math.min(1000, audioState.volume + 10);
+      } else if (message.command === "decrease_volume") {
+        audioState.volume = Math.max(0, audioState.volume - 10);
+      } else if (message.command === "toggle_mute") {
+        audioState.isMuted = !audioState.isMuted;
+      }
+      scanAndApply();
+      notifyBadge();
+      sendResponse({ status: "OK", volume: audioState.volume, isMuted: audioState.isMuted });
       return true;
     }
   });
