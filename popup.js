@@ -1,6 +1,7 @@
-// popup.js - UI Controller for volUP (v1.2.1)
+// popup.js - UI Controller for volUP (v1.3.0 Pro)
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Navigation Tabs
   const navTabs = document.querySelectorAll('.nav-tab');
   const tabContents = document.querySelectorAll('.tab-content');
 
@@ -11,9 +12,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       tab.classList.add('active');
       const targetContent = document.getElementById(tab.dataset.tab);
       if (targetContent) targetContent.classList.add('active');
+
+      if (tab.dataset.tab === 'tab-mixer') {
+        loadMixerTabs();
+      }
     });
   });
 
+  // Main Controls
   const volumeSlider = document.getElementById('volumeSlider');
   const sliderFill = document.getElementById('sliderFill');
   const volumeValue = document.getElementById('volumeValue');
@@ -21,6 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const statusDot = document.querySelector('.status-dot');
   const domainDisplay = document.getElementById('domainDisplay');
   const visualizer = document.getElementById('visualizer');
+  const safetyGuardBadge = document.getElementById('safetyGuardBadge');
   const antiDistortionToggle = document.getElementById('antiDistortionToggle');
   const nightModeToggle = document.getElementById('nightModeToggle');
   const rememberDomainToggle = document.getElementById('rememberDomainToggle');
@@ -28,11 +35,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   const muteBtnText = document.getElementById('muteBtnText');
   const resetBtn = document.getElementById('resetBtn');
   const presetBtns = document.querySelectorAll('.preset-btn');
+  const profileBtns = document.querySelectorAll('.profile-btn');
 
+  // EQ & Quick Boost Controls
+  const bassSlider = document.getElementById('bassSlider');
+  const bassVal = document.getElementById('bassVal');
+  const trebleSlider = document.getElementById('trebleSlider');
+  const trebleVal = document.getElementById('trebleVal');
   const resetEqBtn = document.getElementById('resetEqBtn');
   const eqPresetBtns = document.querySelectorAll('.eq-preset-btn');
   const eqSliders = document.querySelectorAll('.eq-slider');
 
+  // Mixer Controls
+  const mixerList = document.getElementById('mixerList');
+  const refreshTabsBtn = document.getElementById('refreshTabsBtn');
+
+  // Tools Controls
   const panSlider = document.getElementById('panSlider');
   const panValue = document.getElementById('panValue');
 
@@ -42,6 +60,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   let isAntiDistortion = true;
   let isNightMode = false;
   let currentPan = 0;
+  let currentBass = 0;
+  let currentTreble = 0;
+  let currentProfile = 'flat';
   let currentEqBands = [0, 0, 0, 0, 0];
 
   const EQ_PRESETS = {
@@ -76,6 +97,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       isMuted = !!response.isMuted;
       isNightMode = !!response.nightMode;
       currentPan = response.panBalance !== undefined ? response.panBalance : 0;
+      currentBass = response.bassBoost !== undefined ? response.bassBoost : 0;
+      currentTreble = response.trebleBoost !== undefined ? response.trebleBoost : 0;
+      currentProfile = response.audioProfile || 'flat';
       currentEqBands = response.eqBands || [0, 0, 0, 0, 0];
 
       if (response.domain) {
@@ -92,10 +116,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function updateUI() {
+    // Volume Tab
     volumeSlider.value = currentVolume;
     volumeValue.textContent = currentVolume;
     const fillPercent = (currentVolume / 1000) * 100;
     sliderFill.style.width = `${fillPercent}%`;
+
+    // Speaker Guard Badge Display (> 500%)
+    if (currentVolume > 500) {
+      safetyGuardBadge.classList.add('active');
+    } else {
+      safetyGuardBadge.classList.remove('active');
+    }
 
     if (isMuted || currentVolume === 0) {
       visualizer.classList.remove('active');
@@ -149,6 +181,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
+    profileBtns.forEach(btn => {
+      if (btn.dataset.profile === currentProfile) btn.classList.add('active');
+      else btn.classList.remove('active');
+    });
+
+    // EQ & Quick Boost Tab
+    bassSlider.value = currentBass;
+    bassVal.textContent = `+${currentBass} dB`;
+    trebleSlider.value = currentTreble;
+    trebleVal.textContent = `+${currentTreble} dB`;
+
     eqSliders.forEach((slider, idx) => {
       const val = currentEqBands[idx] || 0;
       slider.value = val;
@@ -158,6 +201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
+    // Tools Tab
     panSlider.value = currentPan;
     if (currentPan === 0) panValue.textContent = 'Center';
     else if (currentPan < 0) panValue.textContent = `${Math.abs(Math.round(currentPan * 100))}% Left`;
@@ -200,8 +244,72 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  function setProfile(profileKey) {
+    currentProfile = profileKey;
+    if (activeTabId) {
+      chrome.tabs.sendMessage(activeTabId, { type: "SET_PROFILE", profile: profileKey }, () => {
+        fetchState();
+      });
+    }
+  }
+
+  // Load Multi-Tab Mixer List
+  function loadMixerTabs() {
+    mixerList.innerHTML = '<div class="empty-mixer">Scanning open browser tabs...</div>';
+    chrome.runtime.sendMessage({ type: "GET_ALL_TABS" }, (res) => {
+      if (!res || !res.tabs || res.tabs.length === 0) {
+        mixerList.innerHTML = '<div class="empty-mixer">No open tabs found</div>';
+        return;
+      }
+
+      mixerList.innerHTML = '';
+      res.tabs.forEach(tab => {
+        const item = document.createElement('div');
+        item.className = 'mixer-item';
+
+        const info = document.createElement('div');
+        info.className = 'mixer-item-info';
+
+        if (tab.favIconUrl) {
+          const img = document.createElement('img');
+          img.className = 'mixer-favicon';
+          img.src = tab.favIconUrl;
+          img.onerror = () => { img.style.display = 'none'; };
+          info.appendChild(img);
+        }
+
+        const title = document.createElement('span');
+        title.className = 'mixer-title-text';
+        title.textContent = tab.title;
+        info.appendChild(title);
+
+        if (tab.audible) {
+          const badge = document.createElement('span');
+          badge.className = 'tab-audio-badge';
+          badge.textContent = 'PLAYING';
+          info.appendChild(badge);
+        }
+
+        item.appendChild(info);
+
+        const focusBtn = document.createElement('button');
+        focusBtn.className = 'eq-preset-btn';
+        focusBtn.textContent = tab.active ? 'Active' : 'Switch';
+        focusBtn.style.padding = '3px 8px';
+        focusBtn.addEventListener('click', () => {
+          chrome.tabs.update(tab.id, { active: true });
+        });
+
+        item.appendChild(focusBtn);
+        mixerList.appendChild(item);
+      });
+    });
+  }
+
+  // Listeners: Volume Tab
   volumeSlider.addEventListener('input', (e) => setVolume(parseInt(e.target.value, 10)));
   presetBtns.forEach(btn => btn.addEventListener('click', () => setVolume(parseInt(btn.dataset.preset, 10))));
+  profileBtns.forEach(btn => btn.addEventListener('click', () => setProfile(btn.dataset.profile)));
   muteBtn.addEventListener('click', () => sendMuteState(!isMuted));
   resetBtn.addEventListener('click', () => setVolume(100));
 
@@ -223,6 +331,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         saveDomain: e.target.checked
       });
     }
+  });
+
+  // Listeners: Quick Boost & EQ
+  bassSlider.addEventListener('input', (e) => {
+    currentBass = parseInt(e.target.value, 10);
+    bassVal.textContent = `+${currentBass} dB`;
+    if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_BASS_BOOST", val: currentBass });
+  });
+
+  trebleSlider.addEventListener('input', (e) => {
+    currentTreble = parseInt(e.target.value, 10);
+    trebleVal.textContent = `+${currentTreble} dB`;
+    if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_TREBLE_BOOST", val: currentTreble });
   });
 
   eqSliders.forEach((slider) => {
@@ -247,6 +368,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     sendEQ([0, 0, 0, 0, 0]);
   });
 
+  refreshTabsBtn.addEventListener('click', loadMixerTabs);
+
+  // Listeners: Tools
   panSlider.addEventListener('input', (e) => {
     currentPan = parseFloat(e.target.value);
     updateUI();

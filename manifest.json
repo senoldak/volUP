@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "volUP - Smart Volume Booster, 5-Band EQ & Audio Engine",
-  "version": "1.2.1",
-  "description": "Boost volume up to 1000% with zero distortion, 5-band Graphic EQ, Anti-Distortion, Night Mode & L/R Balance.",
+  "name": "volUP - Smart Volume Booster, EQ & Audio Mixer",
+  "version": "1.3.0",
+  "description": "Boost volume up to 1000%, Multi-Tab Audio Mixer, 5-band EQ, Bass/Treble Boost, Smart Profiles & Anti-Distortion.",
   "permissions": [
     "activeTab",
     "storage",
-    "scripting"
+    "scripting",
+    "tabs"
   ],
   "host_permissions": [
     "<all_urls>"

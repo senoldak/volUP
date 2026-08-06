@@ -1,4 +1,4 @@
-// content.js - Pure Focused Audio Engine for volUP (v1.2.1)
+// content.js - Pure Focused Pro Audio Engine for volUP (v1.3.0)
 
 (function () {
   if (window.volUPInjected) return;
@@ -10,7 +10,18 @@
     isMuted: false,
     nightMode: false,
     panBalance: 0, // -1.0 (Left) to +1.0 (Right)
+    bassBoost: 0, // 0 to +12 dB
+    trebleBoost: 0, // 0 to +12 dB
+    audioProfile: 'flat', // 'flat', 'podcast', 'asmr', 'cinema', 'music'
     eqBands: [0, 0, 0, 0, 0]
+  };
+
+  const PROFILES = {
+    flat: { eq: [0, 0, 0, 0, 0], bass: 0, treble: 0 },
+    podcast: { eq: [-3, 3, 6, 4, 1], bass: 0, treble: 2 },   // Speech clarity (300Hz-3.4kHz boost)
+    asmr: { eq: [2, 4, 6, 7, 8], bass: 3, treble: 6 },       // High sensitivity whisper boost
+    cinema: { eq: [6, 3, 0, 2, 4], bass: 6, treble: 3 },     // Sub-bass punch + dialogue clarity
+    music: { eq: [5, 2, -1, 3, 6], bass: 5, treble: 4 }       // Punchy bass + crisp highs
   };
 
   const processedElements = new WeakMap();
@@ -67,11 +78,25 @@
 
       const source = ctx.createMediaElementSource(mediaElement);
       
+      // Subsonic Filter (20Hz highpass cut)
       const subsonicFilter = ctx.createBiquadFilter();
       subsonicFilter.type = 'highpass';
       subsonicFilter.frequency.setValueAtTime(20, ctx.currentTime);
       subsonicFilter.Q.setValueAtTime(0.5, ctx.currentTime);
 
+      // Bass Boost Node (80Hz Lowshelf)
+      const bassBoostNode = ctx.createBiquadFilter();
+      bassBoostNode.type = 'lowshelf';
+      bassBoostNode.frequency.setValueAtTime(80, ctx.currentTime);
+      bassBoostNode.gain.setValueAtTime(0, ctx.currentTime);
+
+      // Treble Boost Node (8kHz Highshelf)
+      const trebleBoostNode = ctx.createBiquadFilter();
+      trebleBoostNode.type = 'highshelf';
+      trebleBoostNode.frequency.setValueAtTime(8000, ctx.currentTime);
+      trebleBoostNode.gain.setValueAtTime(0, ctx.currentTime);
+
+      // 5-Band Equalizer Nodes
       const eqFrequencies = [60, 250, 1000, 4000, 12000];
       const eqTypes = ['lowshelf', 'peaking', 'peaking', 'peaking', 'highshelf'];
       const eqNodes = eqFrequencies.map((freq, idx) => {
@@ -100,6 +125,8 @@
       const chain = {
         source,
         subsonicFilter,
+        bassBoostNode,
+        trebleBoostNode,
         eqNodes,
         pannerNode,
         gainNode,
@@ -131,6 +158,8 @@
     try {
       chain.source.disconnect();
       chain.subsonicFilter.disconnect();
+      chain.bassBoostNode.disconnect();
+      chain.trebleBoostNode.disconnect();
       chain.eqNodes.forEach(n => n.disconnect());
       if (chain.pannerNode) chain.pannerNode.disconnect();
       chain.gainNode.disconnect();
@@ -138,6 +167,11 @@
       chain.limiterNode.disconnect();
       chain.masterGainNode.disconnect();
 
+      // Apply Bass & Treble Quick Knobs
+      chain.bassBoostNode.gain.setValueAtTime(audioState.bassBoost || 0, ctx.currentTime);
+      chain.trebleBoostNode.gain.setValueAtTime(audioState.trebleBoost || 0, ctx.currentTime);
+
+      // Apply EQ Bands
       if (audioState.eqBands && audioState.eqBands.length === 5) {
         chain.eqNodes.forEach((node, idx) => {
           const val = audioState.eqBands[idx] || 0;
@@ -145,6 +179,7 @@
         });
       }
 
+      // Apply Panner
       if (chain.pannerNode) {
         const panVal = Math.max(-1, Math.min(1, audioState.panBalance || 0));
         chain.pannerNode.pan.setValueAtTime(panVal, ctx.currentTime);
@@ -155,11 +190,12 @@
       const boostFactor = targetVolume / 100;
 
       const hasEQ = audioState.eqBands && audioState.eqBands.some(v => v !== 0);
+      const hasBassTreble = audioState.bassBoost !== 0 || audioState.trebleBoost !== 0;
       const hasNightMode = audioState.nightMode;
       const hasPan = audioState.panBalance !== 0;
 
-      // RULE 1: Bit-Exact Direct Passthrough if <= 100% volume and no active audio filters
-      if (targetVolume <= 100 && !audioState.antiDistortion && !hasEQ && !hasNightMode && !hasPan) {
+      // RULE 1: Direct passthrough if 100% volume and no active DSP processing
+      if (targetVolume <= 100 && !audioState.antiDistortion && !hasEQ && !hasBassTreble && !hasNightMode && !hasPan) {
         chain.gainNode.gain.setValueAtTime(boostFactor, ctx.currentTime);
         chain.source.connect(chain.gainNode);
         chain.gainNode.connect(ctx.destination);
@@ -170,6 +206,12 @@
 
       lastNode.connect(chain.subsonicFilter);
       lastNode = chain.subsonicFilter;
+
+      lastNode.connect(chain.bassBoostNode);
+      lastNode = chain.bassBoostNode;
+
+      lastNode.connect(chain.trebleBoostNode);
+      lastNode = chain.trebleBoostNode;
 
       chain.eqNodes.forEach(eqNode => {
         lastNode.connect(eqNode);
@@ -236,13 +278,16 @@
     const domain = window.location.hostname;
     chrome.storage.local.get([
       'globalVolume', 'antiDistortion', 'isMuted', 'siteVolumes',
-      'nightMode', 'panBalance', 'eqBands'
+      'nightMode', 'panBalance', 'bassBoost', 'trebleBoost', 'audioProfile', 'eqBands'
     ], (res) => {
       if (res.globalVolume !== undefined) audioState.volume = res.globalVolume;
       if (res.antiDistortion !== undefined) audioState.antiDistortion = res.antiDistortion;
       if (res.isMuted !== undefined) audioState.isMuted = res.isMuted;
       if (res.nightMode !== undefined) audioState.nightMode = res.nightMode;
       if (res.panBalance !== undefined) audioState.panBalance = res.panBalance;
+      if (res.bassBoost !== undefined) audioState.bassBoost = res.bassBoost;
+      if (res.trebleBoost !== undefined) audioState.trebleBoost = res.trebleBoost;
+      if (res.audioProfile !== undefined) audioState.audioProfile = res.audioProfile;
       if (res.eqBands !== undefined) audioState.eqBands = res.eqBands;
 
       if (res.siteVolumes && res.siteVolumes[domain] !== undefined) {
@@ -298,6 +343,9 @@
         isMuted: audioState.isMuted,
         nightMode: audioState.nightMode,
         panBalance: audioState.panBalance,
+        bassBoost: audioState.bassBoost,
+        trebleBoost: audioState.trebleBoost,
+        audioProfile: audioState.audioProfile,
         eqBands: audioState.eqBands,
         domain: window.location.hostname
       });
@@ -317,6 +365,41 @@
       scanAndApply();
       notifyBadge();
       sendResponse({ status: "OK", volume: audioState.volume });
+      return true;
+    }
+
+    if (message.type === "SET_BASS_BOOST") {
+      audioState.bassBoost = Math.max(0, Math.min(12, message.val));
+      chrome.storage.local.set({ bassBoost: audioState.bassBoost });
+      scanAndApply();
+      sendResponse({ status: "OK", bassBoost: audioState.bassBoost });
+      return true;
+    }
+
+    if (message.type === "SET_TREBLE_BOOST") {
+      audioState.trebleBoost = Math.max(0, Math.min(12, message.val));
+      chrome.storage.local.set({ trebleBoost: audioState.trebleBoost });
+      scanAndApply();
+      sendResponse({ status: "OK", trebleBoost: audioState.trebleBoost });
+      return true;
+    }
+
+    if (message.type === "SET_PROFILE") {
+      const p = PROFILES[message.profile];
+      if (p) {
+        audioState.audioProfile = message.profile;
+        audioState.eqBands = [...p.eq];
+        audioState.bassBoost = p.bass;
+        audioState.trebleBoost = p.treble;
+        chrome.storage.local.set({
+          audioProfile: audioState.audioProfile,
+          eqBands: audioState.eqBands,
+          bassBoost: audioState.bassBoost,
+          trebleBoost: audioState.trebleBoost
+        });
+        scanAndApply();
+      }
+      sendResponse({ status: "OK", profile: audioState.audioProfile });
       return true;
     }
 

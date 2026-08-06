@@ -1,14 +1,17 @@
-// background.js - Service Worker for volUP Extension (v1.2.1)
+// background.js - Service Worker for volUP Extension (v1.3.0)
 
 chrome.runtime.onInstalled.addListener(() => {
-  console.log("volUP Volume Booster & EQ extension installed.");
+  console.log("volUP Volume Booster & Audio Engine v1.3.0 installed.");
   chrome.storage.local.set({
     globalVolume: 100,
     antiDistortion: true,
     isMuted: false,
     nightMode: false,
     panBalance: 0,
-    eqBands: [0, 0, 0, 0, 0] // 60Hz, 250Hz, 1kHz, 4kHz, 12kHz in dB
+    bassBoost: 0,
+    trebleBoost: 0,
+    audioProfile: 'flat',
+    eqBands: [0, 0, 0, 0, 0]
   });
 });
 
@@ -28,7 +31,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
     }
   }
-  return true;
+
+  // Get all active tabs playing audio or open for Multi-Tab Mixer
+  if (message.type === "GET_ALL_TABS") {
+    chrome.tabs.query({ currentWindow: true }, (tabs) => {
+      const validTabs = tabs.filter(t => t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('edge://')).map(t => ({
+        id: t.id,
+        title: t.title || 'Tab',
+        url: t.url,
+        favIconUrl: t.favIconUrl || '',
+        audible: !!t.audible,
+        active: !!t.active
+      }));
+      sendResponse({ tabs: validTabs });
+    });
+    return true;
+  }
 });
 
 chrome.commands.onCommand.addListener(async (command) => {

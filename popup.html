@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>volUP - Volume Booster & Audio Engine</title>
+  <title>volUP - Pro Audio Engine & Tab Mixer</title>
   <link rel="stylesheet" href="popup.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,7 +23,7 @@
         </div>
         <div class="brand-text">
           <span class="title">volUP</span>
-          <span class="subtitle">Audio Engine v1.2</span>
+          <span class="subtitle">Pro Audio Engine v1.3</span>
         </div>
       </div>
       <div class="domain-badge" id="domainDisplay">Active Tab</div>
@@ -31,39 +31,21 @@
 
     <!-- Navigation Tabs -->
     <nav class="nav-tabs">
-      <button class="nav-tab active" data-tab="tab-volume">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-        </svg>
-        Volume
-      </button>
-      <button class="nav-tab" data-tab="tab-eq">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="4" y1="21" x2="4" y2="14"></line>
-          <line x1="4" y1="10" x2="4" y2="3"></line>
-          <line x1="12" y1="21" x2="12" y2="12"></line>
-          <line x1="12" y1="8" x2="12" y2="3"></line>
-          <line x1="20" y1="21" x2="20" y2="16"></line>
-          <line x1="20" y1="12" x2="20" y2="3"></line>
-          <line x1="1" y1="14" x2="7" y2="14"></line>
-          <line x1="9" y1="8" x2="15" y2="8"></line>
-          <line x1="17" y1="16" x2="23" y2="16"></line>
-        </svg>
-        5-Band EQ
-      </button>
-      <button class="nav-tab" data-tab="tab-tools">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-        </svg>
-        Tools
-      </button>
+      <button class="nav-tab active" data-tab="tab-volume">Volume</button>
+      <button class="nav-tab" data-tab="tab-eq">EQ & Boost</button>
+      <button class="nav-tab" data-tab="tab-mixer">Tab Mixer</button>
+      <button class="nav-tab" data-tab="tab-tools">Tools</button>
     </nav>
 
-    <!-- TAB 1: VOLUME & BOOST -->
+    <!-- TAB 1: VOLUME & PROFILES -->
     <main class="tab-content active" id="tab-volume">
+      <!-- Main Volume Display -->
       <section class="volume-display-card">
+        <div class="safety-guard-badge" id="safetyGuardBadge">
+          <span class="shield-icon">🛡️</span>
+          <span>SPEAKER GUARD ACTIVE</span>
+        </div>
+
         <div class="visualizer" id="visualizer">
           <span class="bar bar-1"></span>
           <span class="bar bar-2"></span>
@@ -84,6 +66,19 @@
         </div>
       </section>
 
+      <!-- Smart Profiles -->
+      <section class="profiles-section">
+        <div class="section-label">Smart Profiles</div>
+        <div class="profiles-grid">
+          <button class="profile-btn active" data-profile="flat">Flat</button>
+          <button class="profile-btn" data-profile="podcast">🎙️ Podcast</button>
+          <button class="profile-btn" data-profile="asmr">🎧 ASMR</button>
+          <button class="profile-btn" data-profile="cinema">🎬 Cinema</button>
+          <button class="profile-btn" data-profile="music">🎵 Music</button>
+        </div>
+      </section>
+
+      <!-- Controls -->
       <section class="controls-section">
         <div class="slider-container">
           <input type="range" id="volumeSlider" min="0" max="1000" step="5" value="100" class="volume-slider">
@@ -118,6 +113,7 @@
         </div>
       </section>
 
+      <!-- Toggles Card -->
       <section class="settings-card">
         <div class="setting-row">
           <div class="setting-info">
@@ -164,8 +160,28 @@
       </section>
     </main>
 
-    <!-- TAB 2: 5-BAND EQUALIZER -->
+    <!-- TAB 2: 5-BAND EQUALIZER & QUICK BOOST -->
     <main class="tab-content" id="tab-eq">
+      <!-- Quick Bass & Treble Knobs Card -->
+      <section class="quick-boost-card">
+        <div class="quick-boost-row">
+          <div class="quick-boost-group">
+            <div class="qb-label-row">
+              <span>🔊 Bass Boost</span>
+              <span class="qb-val" id="bassVal">+0 dB</span>
+            </div>
+            <input type="range" id="bassSlider" min="0" max="12" step="1" value="0" class="qb-slider">
+          </div>
+          <div class="quick-boost-group">
+            <div class="qb-label-row">
+              <span>✨ Treble Boost</span>
+              <span class="qb-val" id="trebleVal">+0 dB</span>
+            </div>
+            <input type="range" id="trebleSlider" min="0" max="12" step="1" value="0" class="qb-slider">
+          </div>
+        </div>
+      </section>
+
       <section class="eq-card">
         <div class="eq-header">
           <span class="eq-title">Graphic Equalizer</span>
@@ -174,10 +190,10 @@
 
         <div class="eq-presets-row">
           <button class="eq-preset-btn active" data-eq="flat">Flat</button>
-          <button class="eq-preset-btn" data-eq="bass">Bass Boost</button>
+          <button class="eq-preset-btn" data-eq="bass">Bass</button>
           <button class="eq-preset-btn" data-eq="vocal">Vocal</button>
           <button class="eq-preset-btn" data-eq="movie">Movie</button>
-          <button class="eq-preset-btn" data-eq="pop">Pop/Rock</button>
+          <button class="eq-preset-btn" data-eq="pop">Pop</button>
         </div>
 
         <div class="eq-sliders-grid">
@@ -210,7 +226,21 @@
       </section>
     </main>
 
-    <!-- TAB 3: AUDIO TOOLS & SHORTCUTS -->
+    <!-- TAB 3: MULTI-TAB VOLUME MIXER -->
+    <main class="tab-content" id="tab-mixer">
+      <section class="mixer-card">
+        <div class="mixer-header">
+          <span class="mixer-title">Multi-Tab Volume Mixer</span>
+          <button class="refresh-tabs-btn" id="refreshTabsBtn">Refresh</button>
+        </div>
+
+        <div class="mixer-list" id="mixerList">
+          <div class="empty-mixer">Scanning open browser tabs...</div>
+        </div>
+      </section>
+    </main>
+
+    <!-- TAB 4: TOOLS & SHORTCUTS -->
     <main class="tab-content" id="tab-tools">
       <section class="tools-card">
         <div class="tool-group">
@@ -247,7 +277,7 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <span>volUP v1.2 • Pro Audio Engine</span>
+      <span>volUP v1.3 • Pro Audio Engine</span>
     </footer>
   </div>
 
