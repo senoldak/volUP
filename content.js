@@ -1,11 +1,11 @@
-// content.js - Pure Transparent & Zero-Distortion Audio Engine for volUP
+// content.js - Pure Transparent & Zero-Distortion Audio Engine for volUP (Supports 0% - 1000%)
 
 (function () {
   if (window.volUPInjected) return;
   window.volUPInjected = true;
 
   let audioState = {
-    volume: 100, // 0 to 600
+    volume: 100, // 0 to 1000
     antiDistortion: true,
     isMuted: false
   };
@@ -26,14 +26,13 @@
     return audioCtx;
   }
 
-  // Smooth transparent soft-clipping curve (Active only on extreme peaks above 0.98)
+  // Smooth transparent soft-clipping curve (Active only on extreme peaks above 0.85)
   function createTransparentLimiterCurve() {
     const n_samples = 65536;
     const curve = new Float32Array(n_samples);
 
     for (let i = 0; i < n_samples; ++i) {
       let x = (i * 2) / n_samples - 1; // -1.0 to +1.0
-      // Linear transparent mapping up to 0.9, soft saturation above 0.9
       if (Math.abs(x) < 0.85) {
         curve[i] = x;
       } else {
@@ -67,7 +66,7 @@
 
       const source = ctx.createMediaElementSource(mediaElement);
       
-      // Subsonic Filter (20Hz highpass - ultra gentle cut, leaves normal bass 100% untouched)
+      // Subsonic Filter (20Hz highpass cut - leaves bass 100% untouched)
       const subsonicFilter = ctx.createBiquadFilter();
       subsonicFilter.type = 'highpass';
       subsonicFilter.frequency.setValueAtTime(20, ctx.currentTime);
@@ -132,29 +131,29 @@
       }
 
       // RULE 2: Above 100% volume with Anti-Distortion enabled
-      // Smooth dynamic scaling based on how much boost is applied
-      const t = (targetVolume - 100) / 500; // 0.0 at 100%, 1.0 at 600%
+      // Smooth dynamic scaling up to 1000% (10x boost)
+      const t = Math.min(1.0, (targetVolume - 100) / 900); // 0.0 at 100%, 1.0 at 1000%
 
-      // Highpass frequency smoothly transitions from 20Hz up to 30Hz
-      const hpFreq = 20 + (t * 10);
+      // Highpass frequency smoothly transitions from 20Hz up to 32Hz
+      const hpFreq = 20 + (t * 12);
       chain.subsonicFilter.frequency.setValueAtTime(hpFreq, ctx.currentTime);
 
-      // Compressor threshold transitions smoothly from -6dB (gentle) to -16dB (strong)
-      const threshold = -6 - (t * 10);
-      // Compression ratio transitions smoothly from 3:1 (very subtle) to 8:1 (controlled boost)
-      const ratio = 3 + (t * 5);
+      // Compressor threshold transitions smoothly from -6dB to -18dB
+      const threshold = -6 - (t * 12);
+      // Compression ratio transitions smoothly from 3:1 to 10:1
+      const ratio = 3 + (t * 7);
 
       chain.compressorNode.threshold.setValueAtTime(threshold, ctx.currentTime);
-      chain.compressorNode.knee.setValueAtTime(24, ctx.currentTime); // Soft knee for natural warmth
+      chain.compressorNode.knee.setValueAtTime(24, ctx.currentTime);
       chain.compressorNode.ratio.setValueAtTime(ratio, ctx.currentTime);
       chain.compressorNode.attack.setValueAtTime(0.005, ctx.currentTime);
       chain.compressorNode.release.setValueAtTime(0.15, ctx.currentTime);
 
-      // Main Gain Boost
+      // Main Gain Boost (up to 10x / 1000%)
       chain.gainNode.gain.setValueAtTime(boostFactor, ctx.currentTime);
 
-      // Output master scaling to keep audio crystal clear
-      const masterScale = 1.0 / (1.0 + t * 0.25);
+      // Output master scaling to keep extreme audio clear
+      const masterScale = 1.0 / (1.0 + t * 0.35);
       chain.masterGainNode.gain.setValueAtTime(masterScale, ctx.currentTime);
 
       // Chain: Source -> SubsonicFilter -> BoostGain -> Compressor -> Limiter -> MasterGain -> Destination
@@ -245,7 +244,7 @@
     }
 
     if (message.type === "SET_VOLUME") {
-      audioState.volume = Math.max(0, Math.min(600, message.volume));
+      audioState.volume = Math.max(0, Math.min(1000, message.volume));
       if (message.saveDomain) {
         const domain = window.location.hostname;
         chrome.storage.local.get(['siteVolumes'], (res) => {
