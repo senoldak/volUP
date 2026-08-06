@@ -1,7 +1,6 @@
-// popup.js - UI Controller for volUP (v1.3.0)
+// popup.js - UI Controller for volUP (v1.2.1)
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Navigation Tabs
   const navTabs = document.querySelectorAll('.nav-tab');
   const tabContents = document.querySelectorAll('.tab-content');
 
@@ -15,7 +14,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // Controls & Elements
   const volumeSlider = document.getElementById('volumeSlider');
   const sliderFill = document.getElementById('sliderFill');
   const volumeValue = document.getElementById('volumeValue');
@@ -25,33 +23,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   const visualizer = document.getElementById('visualizer');
   const antiDistortionToggle = document.getElementById('antiDistortionToggle');
   const nightModeToggle = document.getElementById('nightModeToggle');
-  const skipSilenceToggle = document.getElementById('skipSilenceToggle');
   const rememberDomainToggle = document.getElementById('rememberDomainToggle');
   const muteBtn = document.getElementById('muteBtn');
   const muteBtnText = document.getElementById('muteBtnText');
   const resetBtn = document.getElementById('resetBtn');
   const presetBtns = document.querySelectorAll('.preset-btn');
 
-  // EQ Elements
   const resetEqBtn = document.getElementById('resetEqBtn');
   const eqPresetBtns = document.querySelectorAll('.eq-preset-btn');
   const eqSliders = document.querySelectorAll('.eq-slider');
 
-  // Tools Elements
   const panSlider = document.getElementById('panSlider');
   const panValue = document.getElementById('panValue');
-  const speedSlider = document.getElementById('speedSlider');
-  const speedValue = document.getElementById('speedValue');
-  const speedBtns = document.querySelectorAll('.speed-btn');
 
   let activeTabId = null;
   let currentVolume = 100;
   let isMuted = false;
   let isAntiDistortion = true;
   let isNightMode = false;
-  let isSkipSilence = false;
   let currentPan = 0;
-  let currentSpeed = 1.0;
   let currentEqBands = [0, 0, 0, 0, 0];
 
   const EQ_PRESETS = {
@@ -85,9 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       isAntiDistortion = response.antiDistortion !== undefined ? response.antiDistortion : true;
       isMuted = !!response.isMuted;
       isNightMode = !!response.nightMode;
-      isSkipSilence = !!response.skipSilence;
       currentPan = response.panBalance !== undefined ? response.panBalance : 0;
-      currentSpeed = response.playbackSpeed !== undefined ? response.playbackSpeed : 1.0;
       currentEqBands = response.eqBands || [0, 0, 0, 0, 0];
 
       if (response.domain) {
@@ -104,7 +92,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function updateUI() {
-    // Volume Tab
     volumeSlider.value = currentVolume;
     volumeValue.textContent = currentVolume;
     const fillPercent = (currentVolume / 1000) * 100;
@@ -152,7 +139,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     antiDistortionToggle.checked = isAntiDistortion;
     nightModeToggle.checked = isNightMode;
-    skipSilenceToggle.checked = isSkipSilence;
 
     presetBtns.forEach(btn => {
       const presetVal = parseInt(btn.dataset.preset, 10);
@@ -163,7 +149,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
-    // EQ Tab
     eqSliders.forEach((slider, idx) => {
       const val = currentEqBands[idx] || 0;
       slider.value = val;
@@ -173,20 +158,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
-    // Tools Tab
     panSlider.value = currentPan;
     if (currentPan === 0) panValue.textContent = 'Center';
     else if (currentPan < 0) panValue.textContent = `${Math.abs(Math.round(currentPan * 100))}% Left`;
     else panValue.textContent = `${Math.round(currentPan * 100)}% Right`;
-
-    speedSlider.value = currentSpeed;
-    speedValue.textContent = `${parseFloat(currentSpeed).toFixed(1)}x`;
-
-    speedBtns.forEach(btn => {
-      const sVal = parseFloat(btn.dataset.speed);
-      if (sVal === parseFloat(currentSpeed)) btn.classList.add('active');
-      else btn.classList.remove('active');
-    });
   }
 
   function setVolume(newVolume) {
@@ -225,7 +200,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Listeners: Volume Tab
   volumeSlider.addEventListener('input', (e) => setVolume(parseInt(e.target.value, 10)));
   presetBtns.forEach(btn => btn.addEventListener('click', () => setVolume(parseInt(btn.dataset.preset, 10))));
   muteBtn.addEventListener('click', () => sendMuteState(!isMuted));
@@ -241,11 +215,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_NIGHT_MODE", enabled: isNightMode });
   });
 
-  skipSilenceToggle.addEventListener('change', (e) => {
-    isSkipSilence = e.target.checked;
-    if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_SKIP_SILENCE", enabled: isSkipSilence });
-  });
-
   rememberDomainToggle.addEventListener('change', (e) => {
     if (activeTabId) {
       chrome.tabs.sendMessage(activeTabId, {
@@ -256,7 +225,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Listeners: EQ Tab
   eqSliders.forEach((slider) => {
     slider.addEventListener('input', () => {
       const bands = Array.from(eqSliders).map(s => parseInt(s.value, 10));
@@ -279,25 +247,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     sendEQ([0, 0, 0, 0, 0]);
   });
 
-  // Listeners: Tools Tab
   panSlider.addEventListener('input', (e) => {
     currentPan = parseFloat(e.target.value);
     updateUI();
     if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_PAN", pan: currentPan });
-  });
-
-  speedSlider.addEventListener('input', (e) => {
-    currentSpeed = parseFloat(e.target.value);
-    updateUI();
-    if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_SPEED", speed: currentSpeed });
-  });
-
-  speedBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      currentSpeed = parseFloat(btn.dataset.speed);
-      updateUI();
-      if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_SPEED", speed: currentSpeed });
-    });
   });
 
   fetchState();

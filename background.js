@@ -1,4 +1,4 @@
-// background.js - Service Worker for volUP Extension (v1.2.0)
+// background.js - Service Worker for volUP Extension (v1.2.1)
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log("volUP Volume Booster & EQ extension installed.");
@@ -7,14 +7,11 @@ chrome.runtime.onInstalled.addListener(() => {
     antiDistortion: true,
     isMuted: false,
     nightMode: false,
-    isMono: false,
     panBalance: 0,
-    playbackSpeed: 1.0,
-    eqBands: [0, 0, 0, 0, 0] // 60Hz, 250Hz, 1kHz, 4kHz, 12kHz in dB (-12 to +12)
+    eqBands: [0, 0, 0, 0, 0] // 60Hz, 250Hz, 1kHz, 4kHz, 12kHz in dB
   });
 });
 
-// Update extension action badge when volume changes
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "UPDATE_BADGE") {
     const tabId = sender.tab ? sender.tab.id : message.tabId;
@@ -34,7 +31,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
-// Listen for global keyboard shortcuts (Commands API)
 chrome.commands.onCommand.addListener(async (command) => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab && tab.id) {

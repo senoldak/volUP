@@ -23,7 +23,7 @@
         </div>
         <div class="brand-text">
           <span class="title">volUP</span>
-          <span class="subtitle">Audio Engine v1.3</span>
+          <span class="subtitle">Audio Engine v1.2</span>
         </div>
       </div>
       <div class="domain-badge" id="domainDisplay">Active Tab</div>
@@ -63,7 +63,6 @@
 
     <!-- TAB 1: VOLUME & BOOST -->
     <main class="tab-content active" id="tab-volume">
-      <!-- Main Volume Display -->
       <section class="volume-display-card">
         <div class="visualizer" id="visualizer">
           <span class="bar bar-1"></span>
@@ -85,7 +84,6 @@
         </div>
       </section>
 
-      <!-- Controls -->
       <section class="controls-section">
         <div class="slider-container">
           <input type="range" id="volumeSlider" min="0" max="1000" step="5" value="100" class="volume-slider">
@@ -120,24 +118,7 @@
         </div>
       </section>
 
-      <!-- Toggles Card -->
       <section class="settings-card">
-        <div class="setting-row">
-          <div class="setting-info">
-            <div class="setting-title">
-              <span>Skip Silence</span>
-              <span class="badge-pro">SPEED</span>
-            </div>
-            <div class="setting-desc">Auto fast-forwards silent gaps in videos/podcasts</div>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="skipSilenceToggle">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-
-        <div class="setting-divider"></div>
-
         <div class="setting-row">
           <div class="setting-info">
             <div class="setting-title">
@@ -191,7 +172,6 @@
           <button class="reset-eq-btn" id="resetEqBtn">Reset EQ</button>
         </div>
 
-        <!-- EQ Presets -->
         <div class="eq-presets-row">
           <button class="eq-preset-btn active" data-eq="flat">Flat</button>
           <button class="eq-preset-btn" data-eq="bass">Bass Boost</button>
@@ -200,7 +180,6 @@
           <button class="eq-preset-btn" data-eq="pop">Pop/Rock</button>
         </div>
 
-        <!-- EQ Sliders Grid -->
         <div class="eq-sliders-grid">
           <div class="eq-band">
             <span class="eq-db" id="eqDb-0">0dB</span>
@@ -234,7 +213,6 @@
     <!-- TAB 3: AUDIO TOOLS & SHORTCUTS -->
     <main class="tab-content" id="tab-tools">
       <section class="tools-card">
-        <!-- Balance Slider -->
         <div class="tool-group">
           <div class="tool-label-row">
             <span>Left / Right Balance</span>
@@ -249,25 +227,6 @@
 
         <div class="setting-divider"></div>
 
-        <!-- Speed Slider -->
-        <div class="tool-group">
-          <div class="tool-label-row">
-            <span>Playback Speed</span>
-            <span class="tool-value" id="speedValue">1.0x</span>
-          </div>
-          <input type="range" id="speedSlider" min="0.5" max="3.0" step="0.1" value="1.0" class="tool-slider">
-          <div class="speed-presets">
-            <button class="speed-btn" data-speed="0.8">0.8x</button>
-            <button class="speed-btn active" data-speed="1.0">1.0x</button>
-            <button class="speed-btn" data-speed="1.25">1.25x</button>
-            <button class="speed-btn" data-speed="1.5">1.5x</button>
-            <button class="speed-btn" data-speed="2.0">2.0x</button>
-          </div>
-        </div>
-
-        <div class="setting-divider"></div>
-
-        <!-- Hotkeys info -->
         <div class="hotkeys-info">
           <span class="hotkeys-title">Keyboard Shortcuts</span>
           <div class="hotkey-row">
@@ -288,7 +247,7 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <span>volUP v1.3 • Pro Audio Engine</span>
+      <span>volUP v1.2 • Pro Audio Engine</span>
     </footer>
   </div>
 

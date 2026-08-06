@@ -1,4 +1,4 @@
-// content.js - Complete Multi-Feature Audio Engine for volUP (v1.3.0 with Skip Silence)
+// content.js - Pure Focused Audio Engine for volUP (v1.2.1)
 
 (function () {
   if (window.volUPInjected) return;
@@ -9,10 +9,7 @@
     antiDistortion: true,
     isMuted: false,
     nightMode: false,
-    skipSilence: false,
-    isMono: false,
     panBalance: 0, // -1.0 (Left) to +1.0 (Right)
-    playbackSpeed: 1.0, // 0.5 to 3.0
     eqBands: [0, 0, 0, 0, 0]
   };
 
@@ -98,10 +95,6 @@
       limiterNode.curve = createTransparentLimiterCurve();
       limiterNode.oversample = '2x';
 
-      // AnalyserNode for Real-Time Silence Detection
-      const analyserNode = ctx.createAnalyser();
-      analyserNode.fftSize = 512;
-
       const masterGainNode = ctx.createGain();
 
       const chain = {
@@ -112,84 +105,22 @@
         gainNode,
         compressorNode,
         limiterNode,
-        analyserNode,
         masterGainNode,
-        element: mediaElement,
-        silenceTimer: null,
-        isSkippingSilence: false
+        element: mediaElement
       };
 
       reconnectChain(chain);
       processedElements.set(mediaElement, chain);
 
-      // Start Silence Detection Loop for this element
-      startSilenceDetector(chain);
-
-      applyPlaybackSpeed(mediaElement);
-
       const resumeAudio = () => {
         if (ctx.state === 'suspended') {
           ctx.resume();
         }
-        applyPlaybackSpeed(mediaElement);
       };
       mediaElement.addEventListener('play', resumeAudio, { passive: true });
 
     } catch (err) {
       console.warn("volUP: Failed to attach AudioContext", err);
-    }
-  }
-
-  // Real-time Silence Detector & Speed Boost Engine
-  function startSilenceDetector(chain) {
-    const dataArray = new Float32Array(chain.analyserNode.fftSize);
-    let silentFrames = 0;
-
-    function checkSilence() {
-      if (!audioState.skipSilence || chain.element.paused || chain.element.ended || audioState.isMuted) {
-        if (chain.isSkippingSilence) {
-          chain.isSkippingSilence = false;
-          applyPlaybackSpeed(chain.element);
-        }
-        requestAnimationFrame(checkSilence);
-        return;
-      }
-
-      chain.analyserNode.getFloatTimeDomainData(dataArray);
-      let sum = 0;
-      for (let i = 0; i < dataArray.length; i++) {
-        sum += dataArray[i] * dataArray[i];
-      }
-      let rms = Math.sqrt(sum / dataArray.length);
-
-      // Threshold: RMS < 0.005 is equivalent to ~ -46 dB silence
-      if (rms < 0.005) {
-        silentFrames++;
-        if (silentFrames > 12 && !chain.isSkippingSilence) { // ~200ms of sustained silence
-          chain.isSkippingSilence = true;
-          try {
-            chain.element.playbackRate = 2.5; // Fast-forward silence at 2.5x speed
-          } catch (e) {}
-        }
-      } else {
-        silentFrames = 0;
-        if (chain.isSkippingSilence) {
-          chain.isSkippingSilence = false;
-          applyPlaybackSpeed(chain.element); // Restore original sound speed
-        }
-      }
-
-      requestAnimationFrame(checkSilence);
-    }
-
-    requestAnimationFrame(checkSilence);
-  }
-
-  function applyPlaybackSpeed(mediaElement) {
-    if (mediaElement && audioState.playbackSpeed) {
-      try {
-        mediaElement.playbackRate = audioState.playbackSpeed;
-      } catch (e) {}
     }
   }
 
@@ -205,10 +136,7 @@
       chain.gainNode.disconnect();
       chain.compressorNode.disconnect();
       chain.limiterNode.disconnect();
-      chain.analyserNode.disconnect();
       chain.masterGainNode.disconnect();
-
-      applyPlaybackSpeed(chain.element);
 
       if (audioState.eqBands && audioState.eqBands.length === 5) {
         chain.eqNodes.forEach((node, idx) => {
@@ -229,9 +157,9 @@
       const hasEQ = audioState.eqBands && audioState.eqBands.some(v => v !== 0);
       const hasNightMode = audioState.nightMode;
       const hasPan = audioState.panBalance !== 0;
-      const hasSilenceSkip = audioState.skipSilence;
 
-      if (targetVolume <= 100 && !audioState.antiDistortion && !hasEQ && !hasNightMode && !hasPan && !hasSilenceSkip) {
+      // RULE 1: Bit-Exact Direct Passthrough if <= 100% volume and no active audio filters
+      if (targetVolume <= 100 && !audioState.antiDistortion && !hasEQ && !hasNightMode && !hasPan) {
         chain.gainNode.gain.setValueAtTime(boostFactor, ctx.currentTime);
         chain.source.connect(chain.gainNode);
         chain.gainNode.connect(ctx.destination);
@@ -281,9 +209,6 @@
       lastNode.connect(chain.limiterNode);
       lastNode = chain.limiterNode;
 
-      // Connect AnalyserNode for Real-Time Silence Detection
-      lastNode.connect(chain.analyserNode);
-
       const t = Math.min(1.0, Math.max(0, targetVolume - 100) / 900);
       const masterScale = 1.0 / (1.0 + t * 0.35);
       chain.masterGainNode.gain.setValueAtTime(masterScale, ctx.currentTime);
@@ -311,16 +236,13 @@
     const domain = window.location.hostname;
     chrome.storage.local.get([
       'globalVolume', 'antiDistortion', 'isMuted', 'siteVolumes',
-      'nightMode', 'skipSilence', 'isMono', 'panBalance', 'playbackSpeed', 'eqBands'
+      'nightMode', 'panBalance', 'eqBands'
     ], (res) => {
       if (res.globalVolume !== undefined) audioState.volume = res.globalVolume;
       if (res.antiDistortion !== undefined) audioState.antiDistortion = res.antiDistortion;
       if (res.isMuted !== undefined) audioState.isMuted = res.isMuted;
       if (res.nightMode !== undefined) audioState.nightMode = res.nightMode;
-      if (res.skipSilence !== undefined) audioState.skipSilence = res.skipSilence;
-      if (res.isMono !== undefined) audioState.isMono = res.isMono;
       if (res.panBalance !== undefined) audioState.panBalance = res.panBalance;
-      if (res.playbackSpeed !== undefined) audioState.playbackSpeed = res.playbackSpeed;
       if (res.eqBands !== undefined) audioState.eqBands = res.eqBands;
 
       if (res.siteVolumes && res.siteVolumes[domain] !== undefined) {
@@ -375,10 +297,7 @@
         antiDistortion: audioState.antiDistortion,
         isMuted: audioState.isMuted,
         nightMode: audioState.nightMode,
-        skipSilence: audioState.skipSilence,
-        isMono: audioState.isMono,
         panBalance: audioState.panBalance,
-        playbackSpeed: audioState.playbackSpeed,
         eqBands: audioState.eqBands,
         domain: window.location.hostname
       });
@@ -398,14 +317,6 @@
       scanAndApply();
       notifyBadge();
       sendResponse({ status: "OK", volume: audioState.volume });
-      return true;
-    }
-
-    if (message.type === "SET_SKIP_SILENCE") {
-      audioState.skipSilence = !!message.enabled;
-      chrome.storage.local.set({ skipSilence: audioState.skipSilence });
-      scanAndApply();
-      sendResponse({ status: "OK", skipSilence: audioState.skipSilence });
       return true;
     }
 
@@ -432,14 +343,6 @@
       chrome.storage.local.set({ panBalance: audioState.panBalance });
       scanAndApply();
       sendResponse({ status: "OK", panBalance: audioState.panBalance });
-      return true;
-    }
-
-    if (message.type === "SET_SPEED") {
-      audioState.playbackSpeed = Math.max(0.5, Math.min(3.0, message.speed));
-      chrome.storage.local.set({ playbackSpeed: audioState.playbackSpeed });
-      scanAndApply();
-      sendResponse({ status: "OK", playbackSpeed: audioState.playbackSpeed });
       return true;
     }
 
