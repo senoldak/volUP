@@ -1,4 +1,4 @@
-// popup.js - UI Controller for volUP (v1.4.0 Studio Edition)
+// popup.js - UI Controller for volUP (v1.4.1 Studio Edition)
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Navigation Tabs
@@ -141,16 +141,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fillPercent = (currentVolume / 1000) * 100;
     sliderFill.style.width = `${fillPercent}%`;
 
+    // Apply Visualizer FX Theme Class dynamically
+    visualizer.className = `visualizer ${currentVizTheme}-theme${isMuted || currentVolume === 0 ? '' : ' active'}`;
+    vizThemeBtn.textContent = `🎨 ${currentVizTheme.toUpperCase()}`;
+
     if (currentVolume > 500) {
       safetyGuardBadge.classList.add('active');
     } else {
       safetyGuardBadge.classList.remove('active');
-    }
-
-    if (isMuted || currentVolume === 0) {
-      visualizer.classList.remove('active');
-    } else {
-      visualizer.classList.add('active');
     }
 
     if (isMuted) {
@@ -223,7 +221,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     eqSliders5.forEach((slider, idx) => {
-      const bandIndex = idx * 2 + 1; // Map 5-band to 10-band array positions
+      const bandIndex = idx * 2 + 1;
       const val = currentEqBands[bandIndex] || 0;
       slider.value = val;
       const dbLabel = document.getElementById(`eqDb-${idx}`);
@@ -242,8 +240,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (currentPan === 0) panValue.textContent = 'Center';
     else if (currentPan < 0) panValue.textContent = `${Math.abs(Math.round(currentPan * 100))}% Left`;
     else panValue.textContent = `${Math.round(currentPan * 100)}% Right`;
-
-    vizThemeBtn.textContent = `🎨 ${currentVizTheme.toUpperCase()}`;
   }
 
   function setVolume(newVolume) {
@@ -291,7 +287,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Load Saved Domain Rules Manager
   function loadSavedSites() {
     sitesList.innerHTML = '<div class="empty-sites">Loading saved domain rules...</div>';
     chrome.storage.local.get(['siteVolumes'], (res) => {
@@ -340,14 +335,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Clear All Saved Site Rules
   clearSitesBtn.addEventListener('click', () => {
     chrome.storage.local.set({ siteVolumes: {} }, () => {
       loadSavedSites();
     });
   });
 
-  // Export Settings to JSON
   exportSettingsBtn.addEventListener('click', () => {
     chrome.storage.local.get(null, (allData) => {
       const jsonStr = JSON.stringify(allData, null, 2);
@@ -361,7 +354,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // Import Settings from JSON
   importSettingsBtn.addEventListener('click', () => {
     importFileInput.click();
   });
@@ -384,7 +376,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     reader.readAsText(file);
   });
 
-  // Load Multi-Tab Mixer List
   function loadMixerTabs() {
     mixerList.innerHTML = '<div class="empty-mixer">Scanning open browser tabs...</div>';
     chrome.runtime.sendMessage({ type: "GET_ALL_TABS" }, (res) => {
@@ -437,7 +428,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Listeners: Theme Switcher
+  // Visualizer Theme Cycle Switcher
   vizThemeBtn.addEventListener('click', () => {
     const currentIdx = VIZ_THEMES.indexOf(currentVizTheme);
     currentVizTheme = VIZ_THEMES[(currentIdx + 1) % VIZ_THEMES.length];
@@ -472,7 +463,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Listeners: EQ Mode Switcher (5-Band vs 10-Band Pro)
+  // Listeners: EQ Mode Switcher
   eq5Btn.addEventListener('click', () => {
     currentEqMode = '5band';
     updateUI();

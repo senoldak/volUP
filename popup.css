@@ -1,4 +1,4 @@
-/* popup.css - volUP Studio Edition Styling System (v1.4.0) */
+/* popup.css - volUP Studio Edition Styling System (v1.4.1) */
 
 :root {
   --bg-main: #0b0f19;
@@ -98,9 +98,9 @@ body {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--bg-card-border);
   color: var(--accent-cyan);
-  padding: 3px 6px;
+  padding: 3px 8px;
   border-radius: 12px;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -109,6 +109,7 @@ body {
 .theme-toggle-btn:hover {
   background: rgba(6, 182, 212, 0.2);
   border-color: var(--accent-cyan);
+  transform: translateY(-1px);
 }
 
 .domain-badge {
@@ -206,25 +207,46 @@ body {
   position: relative;
 }
 
+/* --- VISUALIZER FX THEMES --- */
 .visualizer {
   display: flex;
   align-items: flex-end;
   gap: 4px;
-  height: 18px;
-  margin-bottom: 2px;
+  height: 20px;
+  margin-bottom: 4px;
 }
 
 .visualizer .bar {
   width: 4px;
   height: 6px;
-  background: var(--accent-purple);
   border-radius: 2px;
-  transition: height 0.2s ease;
-  opacity: 0.8;
+  transition: all 0.2s ease;
+  opacity: 0.85;
 }
 
-.visualizer.active .bar {
+/* Theme 1: Waves Theme (Neon Purple) */
+.visualizer.waves-theme .bar {
+  background: var(--accent-purple);
+}
+.visualizer.waves-theme.active .bar {
   animation: bounce 0.6s infinite alternate ease-in-out;
+}
+
+/* Theme 2: Pulse Theme (Cyan Glowing Ring / Bar FX) */
+.visualizer.pulse-theme .bar {
+  background: var(--accent-cyan);
+  box-shadow: 0 0 6px var(--accent-cyan);
+}
+.visualizer.pulse-theme.active .bar {
+  animation: pulseFx 0.4s infinite alternate ease-in-out;
+}
+
+/* Theme 3: LED Theme (Green-Yellow-Red Gradient Meter) */
+.visualizer.led-theme .bar-1, .visualizer.led-theme .bar-2 { background: var(--accent-green); }
+.visualizer.led-theme .bar-3, .visualizer.led-theme .bar-4 { background: var(--accent-amber); }
+.visualizer.led-theme .bar-5, .visualizer.led-theme .bar-6 { background: var(--accent-red); }
+.visualizer.led-theme.active .bar {
+  animation: bounce 0.5s infinite alternate ease-in-out;
 }
 
 .visualizer.active .bar-1 { animation-delay: 0.1s; }
@@ -237,6 +259,11 @@ body {
 @keyframes bounce {
   0% { height: 6px; }
   100% { height: 18px; }
+}
+
+@keyframes pulseFx {
+  0% { height: 8px; transform: scaleY(0.8); }
+  100% { height: 20px; transform: scaleY(1.2); }
 }
 
 .percentage-wrapper {
@@ -769,6 +796,36 @@ input:checked + .toggle-slider:before { transform: translateX(16px); }
   gap: 6px;
   flex: 1;
   min-width: 0;
+}
+
+/* --- FIXED SMALL CRISP MIXER FAVICON --- */
+.mixer-favicon {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.mixer-title-text {
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.tab-audio-badge {
+  font-size: 8px;
+  font-weight: 800;
+  color: var(--accent-green);
+  background: rgba(16, 185, 129, 0.15);
+  padding: 1px 4px;
+  border-radius: 4px;
 }
 
 .site-domain-name {
