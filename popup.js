@@ -1,4 +1,4 @@
-// popup.js - UI Controller for volUP (v1.4.3 Balance Reset & Sites Tab Fix)
+// popup.js - UI Controller for volUP (v1.4.4 Clean Status Badge)
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Navigation Tabs
@@ -30,7 +30,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const domainDisplay = document.getElementById('domainDisplay');
   const visualizer = document.getElementById('visualizer');
   const vizThemeBtn = document.getElementById('vizThemeBtn');
-  const safetyGuardBadge = document.getElementById('safetyGuardBadge');
   const antiDistortionToggle = document.getElementById('antiDistortionToggle');
   const nightModeToggle = document.getElementById('nightModeToggle');
   const rememberDomainToggle = document.getElementById('rememberDomainToggle');
@@ -153,12 +152,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     visualizer.className = `visualizer ${themeClass}${activeClass}`;
     vizThemeBtn.textContent = `🎨 ${currentVizTheme.toUpperCase()}`;
 
-    if (currentVolume > 500) {
-      safetyGuardBadge.classList.add('active');
-    } else {
-      safetyGuardBadge.classList.remove('active');
-    }
-
     if (isMuted) {
       volumeValue.style.color = '#ef4444';
       statusText.textContent = 'Muted';
@@ -182,12 +175,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         statusDot.style.boxShadow = '0 0 8px #8b5cf6';
       } else if (currentVolume <= 800) {
         volumeValue.style.color = '#f472b6';
-        statusText.textContent = 'Super Boost Level';
+        statusText.textContent = 'Super Boost Level 🛡️';
         statusDot.style.backgroundColor = '#ec4899';
         statusDot.style.boxShadow = '0 0 8px #ec4899';
       } else {
         volumeValue.style.color = '#06b6d4';
-        statusText.textContent = '10x TURBO Boost Level';
+        statusText.textContent = '10x TURBO Boost Level 🛡️';
         statusDot.style.backgroundColor = '#06b6d4';
         statusDot.style.boxShadow = '0 0 8px #06b6d4';
       }
