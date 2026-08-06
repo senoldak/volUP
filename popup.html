@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -26,7 +26,7 @@
           <span class="subtitle">Sound Booster</span>
         </div>
       </div>
-      <div class="domain-badge" id="domainDisplay">Aktif Sekme</div>
+      <div class="domain-badge" id="domainDisplay">Active Tab</div>
     </header>
 
     <!-- Main Volume Display -->
@@ -47,7 +47,7 @@
 
       <div class="status-indicator" id="statusIndicator">
         <span class="status-dot"></span>
-        <span class="status-text" id="statusText">Normal Ses Seviyesi</span>
+        <span class="status-text" id="statusText">Normal Audio Level</span>
       </div>
     </section>
 
@@ -76,7 +76,7 @@
             <line x1="23" y1="9" x2="17" y2="15"></line>
             <line x1="17" y1="9" x2="23" y2="15"></line>
           </svg>
-          <span id="muteBtnText">Sesi Kapat</span>
+          <span id="muteBtnText">Mute</span>
         </button>
 
         <button class="action-btn reset-btn" id="resetBtn">
@@ -84,7 +84,7 @@
             <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
             <path d="M3 3v5h5"></path>
           </svg>
-          Sıfırla
+          Reset
         </button>
       </div>
     </section>
@@ -94,10 +94,10 @@
       <div class="setting-row">
         <div class="setting-info">
           <div class="setting-title">
-            <span>Net Ses (Anti-Distortion)</span>
+            <span>Smart Anti-Distortion</span>
             <span class="badge-pro">SMART</span>
           </div>
-          <div class="setting-desc">Yüksek seste cızırtı ve ses bozulmasını otomatik engeller</div>
+          <div class="setting-desc">Prevents clipping and crackling at high volume levels</div>
         </div>
         <label class="toggle-switch">
           <input type="checkbox" id="antiDistortionToggle" checked>
@@ -109,8 +109,8 @@
 
       <div class="setting-row">
         <div class="setting-info">
-          <div class="setting-title">Bu site için hatırla</div>
-          <div class="setting-desc">Sekmeyi tekrar açtığında ayarlanan seviyeyi koru</div>
+          <div class="setting-title">Remember for this site</div>
+          <div class="setting-desc">Automatically restores saved volume on revisit</div>
         </div>
         <label class="toggle-switch">
           <input type="checkbox" id="rememberDomainToggle">

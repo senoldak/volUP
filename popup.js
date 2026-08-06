@@ -25,9 +25,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     activeTabId = tab.id;
     try {
       const url = new URL(tab.url);
-      domainDisplay.textContent = url.hostname || 'Yerel Sayfa';
+      domainDisplay.textContent = url.hostname || 'Local Page';
     } catch (e) {
-      domainDisplay.textContent = 'Web Sayfası';
+      domainDisplay.textContent = 'Web Page';
     }
   }
 
@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!activeTabId) return;
     chrome.tabs.sendMessage(activeTabId, { type: "GET_STATUS" }, (response) => {
       if (chrome.runtime.lastError || !response) {
-        domainDisplay.textContent = "Kapsam Dışı";
+        domainDisplay.textContent = "Out of Scope";
         return;
       }
 
@@ -72,33 +72,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (isMuted) {
       volumeValue.style.color = '#ef4444';
-      statusText.textContent = 'Sessiz (Muted)';
+      statusText.textContent = 'Muted';
       statusDot.style.backgroundColor = '#ef4444';
       statusDot.style.boxShadow = '0 0 8px #ef4444';
       muteBtn.classList.add('muted');
-      muteBtnText.textContent = 'Sesi Aç';
+      muteBtnText.textContent = 'Unmute';
     } else {
       muteBtn.classList.remove('muted');
-      muteBtnText.textContent = 'Sesi Kapat';
+      muteBtnText.textContent = 'Mute';
 
       if (currentVolume <= 100) {
         volumeValue.style.color = '#ffffff';
-        statusText.textContent = 'Normal Ses Seviyesi';
+        statusText.textContent = 'Normal Audio Level';
         statusDot.style.backgroundColor = '#10b981';
         statusDot.style.boxShadow = '0 0 8px #10b981';
       } else if (currentVolume <= 400) {
         volumeValue.style.color = '#c084fc';
-        statusText.textContent = 'Güçlendirilmiş Ses (HD Boost)';
+        statusText.textContent = 'HD Boosted Audio';
         statusDot.style.backgroundColor = '#8b5cf6';
         statusDot.style.boxShadow = '0 0 8px #8b5cf6';
       } else if (currentVolume <= 800) {
         volumeValue.style.color = '#f472b6';
-        statusText.textContent = 'Yüksek Güç (Super Boost)';
+        statusText.textContent = 'Super Boost Level';
         statusDot.style.backgroundColor = '#ec4899';
         statusDot.style.boxShadow = '0 0 8px #ec4899';
       } else {
         volumeValue.style.color = '#06b6d4';
-        statusText.textContent = 'Maksimum Güç (10x TURBO Boost)';
+        statusText.textContent = '10x TURBO Boost Level';
         statusDot.style.backgroundColor = '#06b6d4';
         statusDot.style.boxShadow = '0 0 8px #06b6d4';
       }

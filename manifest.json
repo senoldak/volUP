@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "volUP - Smart Volume Booster & Anti-Distortion",
-  "version": "1.0.0",
-  "description": "Ses kalitesini ve netliğini bozmadan web sitelerinin sesini %600'e kadar yükseltin.",
+  "version": "1.1.0",
+  "description": "Boost web volume up to 1000% (10x) with crystal-clear audio quality and smart anti-distortion.",
   "permissions": [
     "activeTab",
     "storage",
