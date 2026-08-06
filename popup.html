@@ -23,7 +23,7 @@
         </div>
         <div class="brand-text">
           <span class="title">volUP</span>
-          <span class="subtitle">Studio Edition v1.4</span>
+          <span class="subtitle">Master Edition v1.5</span>
         </div>
       </div>
       <div class="header-actions">
@@ -134,6 +134,22 @@
         <div class="setting-row">
           <div class="setting-info">
             <div class="setting-title">
+              <span>Vocal Clarity Filter</span>
+              <span class="badge-pro">DIALOGUE</span>
+            </div>
+            <div class="setting-desc">Boosts speech frequencies for clear dialogue</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="vocalClarityToggle">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-divider"></div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-title">
               <span>Night Mode</span>
               <span class="badge-pro">CINEMA</span>
             </div>
@@ -141,6 +157,22 @@
           </div>
           <label class="toggle-switch">
             <input type="checkbox" id="nightModeToggle">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-divider"></div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-title">
+              <span>Ear Protection Lock</span>
+              <span class="badge-pro">SAFE</span>
+            </div>
+            <div class="setting-desc">Caps max volume at 400% for hearing safety</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="maxLockToggle">
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -276,9 +308,43 @@
       </section>
     </main>
 
-    <!-- TAB 5: TOOLS & BACKUP -->
+    <!-- TAB 5: TOOLS, TIMER & BACKUP -->
     <main class="tab-content" id="tab-tools">
       <section class="tools-card">
+        <!-- Sleep Timer -->
+        <div class="tool-group">
+          <div class="tool-label-row">
+            <span>⏱️ Sleep Auto-Off Timer</span>
+            <span class="tool-value" id="timerValue">Off</span>
+          </div>
+          <div class="timer-buttons-row">
+            <button class="timer-btn active" data-time="0">Off</button>
+            <button class="timer-btn" data-time="15">15m</button>
+            <button class="timer-btn" data-time="30">30m</button>
+            <button class="timer-btn" data-time="45">45m</button>
+            <button class="timer-btn" data-time="60">60m</button>
+          </div>
+        </div>
+
+        <div class="setting-divider"></div>
+
+        <!-- Stereo to Mono Switch -->
+        <div class="setting-row" style="padding: 0;">
+          <div class="setting-info">
+            <div class="setting-title">
+              <span>Stereo to Mono Converter</span>
+              <span class="badge-pro">MONO</span>
+            </div>
+            <div class="setting-desc">Mixes L & R into single earbud feed</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="monoToggle">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-divider"></div>
+
         <div class="tool-group">
           <div class="tool-label-row">
             <div>
@@ -330,7 +396,7 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <span>volUP v1.4 • Studio Audio Engine</span>
+      <span>volUP v1.5 • Studio Audio Engine</span>
     </footer>
   </div>
 

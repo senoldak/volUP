@@ -1,4 +1,4 @@
-// popup.js - UI Controller for volUP (v1.4.5 Tab Mute Feature)
+// popup.js - UI Controller for volUP (v1.5.0 Master Edition)
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Navigation Tabs
@@ -31,7 +31,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const visualizer = document.getElementById('visualizer');
   const vizThemeBtn = document.getElementById('vizThemeBtn');
   const antiDistortionToggle = document.getElementById('antiDistortionToggle');
+  const vocalClarityToggle = document.getElementById('vocalClarityToggle');
   const nightModeToggle = document.getElementById('nightModeToggle');
+  const maxLockToggle = document.getElementById('maxLockToggle');
   const rememberDomainToggle = document.getElementById('rememberDomainToggle');
   const muteBtn = document.getElementById('muteBtn');
   const muteBtnText = document.getElementById('muteBtnText');
@@ -59,7 +61,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const sitesList = document.getElementById('sitesList');
   const clearSitesBtn = document.getElementById('clearSitesBtn');
 
-  // Tools & Backup Controls
+  // Tools, Timer & Backup Controls
+  const timerValue = document.getElementById('timerValue');
+  const timerBtns = document.querySelectorAll('.timer-btn');
+  const monoToggle = document.getElementById('monoToggle');
   const panSlider = document.getElementById('panSlider');
   const panValue = document.getElementById('panValue');
   const resetPanBtn = document.getElementById('resetPanBtn');
@@ -71,7 +76,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentVolume = 100;
   let isMuted = false;
   let isAntiDistortion = true;
+  let isVocalClarity = false;
   let isNightMode = false;
+  let isMono = false;
+  let maxLock = 0;
   let currentPan = 0;
   let currentBass = 0;
   let currentTreble = 0;
@@ -79,6 +87,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentEqMode = '5band';
   let currentVizTheme = 'waves';
   let currentEqBands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let sleepTimerEndTime = null;
+  let timerInterval = null;
 
   const EQ_PRESETS_10 = {
     flat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -101,15 +111,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // Safe tab message sender with connection error catching
+  function safeSendMessage(message, callback) {
+    if (!activeTabId) return;
+    chrome.tabs.sendMessage(activeTabId, message, (response) => {
+      if (chrome.runtime.lastError) {
+        // Suppress "Could not establish connection. Receiving end does not exist."
+        void chrome.runtime.lastError;
+      }
+      if (callback) callback(response);
+    });
+  }
+
   function fetchState() {
     chrome.storage.local.get([
       'globalVolume', 'antiDistortion', 'isMuted', 'siteVolumes',
-      'nightMode', 'panBalance', 'bassBoost', 'trebleBoost', 'audioProfile', 'eqBands', 'eqMode', 'vizTheme'
+      'nightMode', 'isMono', 'vocalClarity', 'maxLock',
+      'panBalance', 'bassBoost', 'trebleBoost', 'audioProfile', 'eqBands', 'eqMode', 'vizTheme', 'sleepTimerEndTime'
     ], (res) => {
       if (res.globalVolume !== undefined) currentVolume = res.globalVolume;
       if (res.antiDistortion !== undefined) isAntiDistortion = res.antiDistortion;
       if (res.isMuted !== undefined) isMuted = res.isMuted;
       if (res.nightMode !== undefined) isNightMode = res.nightMode;
+      if (res.isMono !== undefined) isMono = res.isMono;
+      if (res.vocalClarity !== undefined) isVocalClarity = res.vocalClarity;
+      if (res.maxLock !== undefined) maxLock = res.maxLock;
       if (res.panBalance !== undefined) currentPan = res.panBalance;
       if (res.bassBoost !== undefined) currentBass = res.bassBoost;
       if (res.trebleBoost !== undefined) currentTreble = res.trebleBoost;
@@ -117,25 +143,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (res.eqMode !== undefined) currentEqMode = res.eqMode;
       if (res.vizTheme !== undefined) currentVizTheme = res.vizTheme;
       if (res.eqBands !== undefined) currentEqBands = res.eqBands;
+      if (res.sleepTimerEndTime !== undefined) sleepTimerEndTime = res.sleepTimerEndTime;
 
-      if (activeTabId) {
-        chrome.tabs.sendMessage(activeTabId, { type: "GET_STATUS" }, (response) => {
-          if (chrome.runtime.lastError || !response) {
-            domainDisplay.textContent = "Out of Scope";
-          } else {
-            if (response.domain) {
-              const siteVolumes = res.siteVolumes || {};
-              if (siteVolumes[response.domain] !== undefined) {
-                currentVolume = siteVolumes[response.domain];
-                rememberDomainToggle.checked = true;
-              }
-            }
+      safeSendMessage({ type: "GET_STATUS" }, (response) => {
+        if (response && response.domain) {
+          const siteVolumes = res.siteVolumes || {};
+          if (siteVolumes[response.domain] !== undefined) {
+            currentVolume = siteVolumes[response.domain];
+            rememberDomainToggle.checked = true;
           }
-          updateUI();
-        });
-      } else {
+        }
         updateUI();
-      }
+        updateTimerDisplay();
+      });
     });
   }
 
@@ -146,7 +166,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fillPercent = (currentVolume / 1000) * 100;
     sliderFill.style.width = `${fillPercent}%`;
 
-    // Apply Visualizer FX Theme Class dynamically
     const themeClass = `${currentVizTheme}-theme`;
     const activeClass = (isMuted || currentVolume === 0) ? '' : ' active';
     visualizer.className = `visualizer ${themeClass}${activeClass}`;
@@ -187,7 +206,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     antiDistortionToggle.checked = isAntiDistortion;
+    vocalClarityToggle.checked = isVocalClarity;
     nightModeToggle.checked = isNightMode;
+    maxLockToggle.checked = maxLock > 0;
+    monoToggle.checked = isMono;
 
     presetBtns.forEach(btn => {
       const presetVal = parseInt(btn.dataset.preset, 10);
@@ -244,54 +266,97 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function setVolume(newVolume) {
+    if (maxLock > 0 && newVolume > maxLock) {
+      newVolume = maxLock;
+    }
     currentVolume = Math.max(0, Math.min(1000, newVolume));
     if (isMuted) {
       isMuted = false;
       sendMuteState(false);
     }
     updateUI();
-
     chrome.storage.local.set({ globalVolume: currentVolume });
 
-    if (activeTabId) {
-      chrome.tabs.sendMessage(activeTabId, {
-        type: "SET_VOLUME",
-        volume: currentVolume,
-        saveDomain: rememberDomainToggle.checked
-      });
-    }
+    safeSendMessage({
+      type: "SET_VOLUME",
+      volume: currentVolume,
+      saveDomain: rememberDomainToggle.checked
+    });
   }
 
   function sendMuteState(muted) {
     isMuted = muted;
     updateUI();
     chrome.storage.local.set({ isMuted: isMuted });
-    if (activeTabId) {
-      chrome.tabs.sendMessage(activeTabId, {
-        type: "TOGGLE_MUTE",
-        isMuted: isMuted
-      });
-    }
+    safeSendMessage({
+      type: "TOGGLE_MUTE",
+      isMuted: isMuted
+    });
   }
 
   function sendEQ(bands) {
     currentEqBands = bands;
     updateUI();
     chrome.storage.local.set({ eqBands: currentEqBands });
-    if (activeTabId) {
-      chrome.tabs.sendMessage(activeTabId, { type: "SET_EQ", eqBands: currentEqBands });
-    }
+    safeSendMessage({ type: "SET_EQ", eqBands: currentEqBands });
   }
 
   function setProfile(profileKey) {
     currentProfile = profileKey;
     chrome.storage.local.set({ audioProfile: profileKey });
-    if (activeTabId) {
-      chrome.tabs.sendMessage(activeTabId, { type: "SET_PROFILE", profile: profileKey }, () => {
-        fetchState();
-      });
-    }
+    safeSendMessage({ type: "SET_PROFILE", profile: profileKey }, () => {
+      fetchState();
+    });
   }
+
+  // Sleep Timer Countdown Manager
+  function updateTimerDisplay() {
+    if (timerInterval) clearInterval(timerInterval);
+
+    if (!sleepTimerEndTime || sleepTimerEndTime <= Date.now()) {
+      timerValue.textContent = "Off";
+      timerBtns.forEach(btn => {
+        if (btn.dataset.time === "0") btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+      return;
+    }
+
+    const tick = () => {
+      const remainingMs = sleepTimerEndTime - Date.now();
+      if (remainingMs <= 0) {
+        clearInterval(timerInterval);
+        sleepTimerEndTime = null;
+        chrome.storage.local.set({ sleepTimerEndTime: null });
+        sendMuteState(true);
+        updateTimerDisplay();
+        return;
+      }
+      const totalSecs = Math.floor(remainingMs / 1000);
+      const mins = Math.floor(totalSecs / 60);
+      const secs = totalSecs % 60;
+      timerValue.textContent = `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
+    };
+
+    tick();
+    timerInterval = setInterval(tick, 1000);
+  }
+
+  timerBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const minutes = parseInt(btn.dataset.time, 10);
+      timerBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      if (minutes === 0) {
+        sleepTimerEndTime = null;
+      } else {
+        sleepTimerEndTime = Date.now() + (minutes * 60 * 1000);
+      }
+      chrome.storage.local.set({ sleepTimerEndTime });
+      updateTimerDisplay();
+    });
+  });
 
   function loadSavedSites() {
     sitesList.innerHTML = '<div class="empty-sites">Loading saved domain rules...</div>';
@@ -385,6 +450,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function loadMixerTabs() {
     mixerList.innerHTML = '<div class="empty-mixer">Scanning open browser tabs...</div>';
     chrome.runtime.sendMessage({ type: "GET_ALL_TABS" }, (res) => {
+      if (chrome.runtime.lastError) void chrome.runtime.lastError;
       if (!res || !res.tabs || res.tabs.length === 0) {
         mixerList.innerHTML = '<div class="empty-mixer">No open tabs found</div>';
         return;
@@ -423,7 +489,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'mixer-actions';
 
-        // Tab Mute / Unmute Button
         const isTabMuted = tab.mutedInfo && tab.mutedInfo.muted;
         const muteTabBtn = document.createElement('button');
         muteTabBtn.className = 'tab-mute-btn';
@@ -436,12 +501,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             tabId: tab.id,
             muted: !isTabMuted
           }, () => {
+            if (chrome.runtime.lastError) void chrome.runtime.lastError;
             loadMixerTabs();
           });
         });
         actionsDiv.appendChild(muteTabBtn);
 
-        // Switch to Tab Button
         const focusBtn = document.createElement('button');
         focusBtn.className = 'eq-preset-btn';
         focusBtn.textContent = tab.active ? 'Active' : 'Switch';
@@ -463,7 +528,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentVizTheme = VIZ_THEMES[(currentIdx + 1) % VIZ_THEMES.length];
     chrome.storage.local.set({ vizTheme: currentVizTheme });
     updateUI();
-    if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_VIZ_THEME", theme: currentVizTheme });
+    safeSendMessage({ type: "SET_VIZ_THEME", theme: currentVizTheme });
   });
 
   // Listeners: Volume Tab
@@ -476,23 +541,42 @@ document.addEventListener('DOMContentLoaded', async () => {
   antiDistortionToggle.addEventListener('change', (e) => {
     isAntiDistortion = e.target.checked;
     chrome.storage.local.set({ antiDistortion: isAntiDistortion });
-    if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_ANTI_DISTORTION", enabled: isAntiDistortion });
+    safeSendMessage({ type: "SET_ANTI_DISTORTION", enabled: isAntiDistortion });
+  });
+
+  vocalClarityToggle.addEventListener('change', (e) => {
+    isVocalClarity = e.target.checked;
+    chrome.storage.local.set({ vocalClarity: isVocalClarity });
+    safeSendMessage({ type: "SET_VOCAL_CLARITY", enabled: isVocalClarity });
   });
 
   nightModeToggle.addEventListener('change', (e) => {
     isNightMode = e.target.checked;
     chrome.storage.local.set({ nightMode: isNightMode });
-    if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_NIGHT_MODE", enabled: isNightMode });
+    safeSendMessage({ type: "SET_NIGHT_MODE", enabled: isNightMode });
+  });
+
+  maxLockToggle.addEventListener('change', (e) => {
+    maxLock = e.target.checked ? 400 : 0;
+    chrome.storage.local.set({ maxLock });
+    if (maxLock > 0 && currentVolume > maxLock) {
+      setVolume(maxLock);
+    }
+    safeSendMessage({ type: "SET_MAX_LOCK", val: maxLock });
+  });
+
+  monoToggle.addEventListener('change', (e) => {
+    isMono = e.target.checked;
+    chrome.storage.local.set({ isMono });
+    safeSendMessage({ type: "SET_MONO", enabled: isMono });
   });
 
   rememberDomainToggle.addEventListener('change', (e) => {
-    if (activeTabId) {
-      chrome.tabs.sendMessage(activeTabId, {
-        type: "SET_VOLUME",
-        volume: currentVolume,
-        saveDomain: e.target.checked
-      });
-    }
+    safeSendMessage({
+      type: "SET_VOLUME",
+      volume: currentVolume,
+      saveDomain: e.target.checked
+    });
   });
 
   // Listeners: EQ Mode Switcher
@@ -500,14 +584,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentEqMode = '5band';
     chrome.storage.local.set({ eqMode: '5band' });
     updateUI();
-    if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_EQ_MODE", mode: '5band' });
+    safeSendMessage({ type: "SET_EQ_MODE", mode: '5band' });
   });
 
   eq10Btn.addEventListener('click', () => {
     currentEqMode = '10band';
     chrome.storage.local.set({ eqMode: '10band' });
     updateUI();
-    if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_EQ_MODE", mode: '10band' });
+    safeSendMessage({ type: "SET_EQ_MODE", mode: '10band' });
   });
 
   // Listeners: Quick Boost & EQ Sliders
@@ -515,14 +599,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentBass = parseInt(e.target.value, 10);
     bassVal.textContent = `+${currentBass} dB`;
     chrome.storage.local.set({ bassBoost: currentBass });
-    if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_BASS_BOOST", val: currentBass });
+    safeSendMessage({ type: "SET_BASS_BOOST", val: currentBass });
   });
 
   trebleSlider.addEventListener('input', (e) => {
     currentTreble = parseInt(e.target.value, 10);
     trebleVal.textContent = `+${currentTreble} dB`;
     chrome.storage.local.set({ trebleBoost: currentTreble });
-    if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_TREBLE_BOOST", val: currentTreble });
+    safeSendMessage({ type: "SET_TREBLE_BOOST", val: currentTreble });
   });
 
   eqSliders5.forEach((slider, idx) => {
@@ -564,14 +648,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentPan = parseFloat(e.target.value);
     updateUI();
     chrome.storage.local.set({ panBalance: currentPan });
-    if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_PAN", pan: currentPan });
+    safeSendMessage({ type: "SET_PAN", pan: currentPan });
   });
 
   resetPanBtn.addEventListener('click', () => {
     currentPan = 0;
     updateUI();
     chrome.storage.local.set({ panBalance: 0 });
-    if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_PAN", pan: 0 });
+    safeSendMessage({ type: "SET_PAN", pan: 0 });
   });
 
   fetchState();

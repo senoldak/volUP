@@ -1,4 +1,4 @@
-/* popup.css - volUP Studio Edition Styling System (v1.4.5) */
+/* popup.css - volUP Master Edition Styling System (v1.5.0) */
 
 :root {
   --bg-main: #0b0f19;
@@ -905,6 +905,29 @@ input:checked + .toggle-slider:before { transform: translateX(16px); }
 
 .tool-value {
   color: var(--accent-cyan);
+}
+
+.timer-buttons-row {
+  display: flex;
+  gap: 4px;
+}
+
+.timer-btn {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--bg-card-border);
+  color: var(--text-main);
+  padding: 5px 0;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.timer-btn.active {
+  background: var(--accent-purple);
+  border-color: var(--accent-purple);
+  color: #ffffff;
 }
 
 .balance-slider-wrapper {

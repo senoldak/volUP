@@ -1,4 +1,4 @@
-// content.js - Pure Focused Pro Audio Engine for volUP (v1.4.0 Studio Edition)
+// content.js - Pure Focused Pro Audio Engine for volUP (v1.5.0 Master Edition)
 
 (function () {
   if (window.volUPInjected) return;
@@ -9,13 +9,16 @@
     antiDistortion: true,
     isMuted: false,
     nightMode: false,
+    isMono: false,
+    vocalClarity: false,
+    maxLock: 0, // 0 (Unlocked), 400 (400% Cap)
     panBalance: 0, // -1.0 (Left) to +1.0 (Right)
     bassBoost: 0, // 0 to +12 dB
     trebleBoost: 0, // 0 to +12 dB
     audioProfile: 'flat', // 'flat', 'podcast', 'asmr', 'cinema', 'music'
-    eqMode: '5band', // '5band' or '10band'
-    vizTheme: 'waves', // 'waves', 'pulse', 'led'
-    eqBands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] // 10 bands: 31Hz, 62Hz, 125Hz, 250Hz, 500Hz, 1kHz, 2kHz, 4kHz, 8kHz, 16kHz
+    eqMode: '5band',
+    vizTheme: 'waves',
+    eqBands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
   };
 
   const PROFILES = {
@@ -28,6 +31,7 @@
 
   const processedElements = new WeakMap();
   let audioCtx = null;
+  let osdTimeout = null;
 
   function getAudioContext() {
     if (!audioCtx) {
@@ -53,6 +57,53 @@
     ['click', 'keydown', 'touchstart', 'pointerdown'].forEach(evt => {
       window.addEventListener(evt, handleGesture, { passive: true, once: false });
     });
+  }
+
+  // Floating On-Screen Display (OSD) Toast Badge
+  function showOSD(text, icon = "🔊") {
+    let container = document.getElementById('volup-osd-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'volup-osd-container';
+      container.style.cssText = `
+        position: fixed;
+        top: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-20px);
+        background: rgba(11, 15, 25, 0.85);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(139, 92, 246, 0.4);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(139, 92, 246, 0.3);
+        color: #ffffff;
+        padding: 8px 20px;
+        border-radius: 30px;
+        font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: -0.2px;
+        z-index: 999999;
+        pointer-events: none;
+        opacity: 0;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      `;
+      document.body.appendChild(container);
+    }
+
+    container.innerHTML = `<span style="font-size: 16px;">${icon}</span><span>${text}</span>`;
+    container.style.opacity = '1';
+    container.style.transform = 'translateX(-50%) translateY(0)';
+
+    if (osdTimeout) clearTimeout(osdTimeout);
+    osdTimeout = setTimeout(() => {
+      if (container) {
+        container.style.opacity = '0';
+        container.style.transform = 'translateX(-50%) translateY(-20px)';
+      }
+    }, 1500);
   }
 
   function createTransparentLimiterCurve() {
@@ -96,7 +147,12 @@
       const subsonicFilter = ctx.createBiquadFilter();
       subsonicFilter.type = 'highpass';
       subsonicFilter.frequency.setValueAtTime(20, ctx.currentTime);
-      subsonicFilter.Q.setValueAtTime(0.5, ctx.currentTime);
+
+      const vocalClarityNode = ctx.createBiquadFilter();
+      vocalClarityNode.type = 'peaking';
+      vocalClarityNode.frequency.setValueAtTime(2500, ctx.currentTime);
+      vocalClarityNode.Q.setValueAtTime(1.2, ctx.currentTime);
+      vocalClarityNode.gain.setValueAtTime(0, ctx.currentTime);
 
       const bassBoostNode = ctx.createBiquadFilter();
       bassBoostNode.type = 'lowshelf';
@@ -108,7 +164,6 @@
       trebleBoostNode.frequency.setValueAtTime(8000, ctx.currentTime);
       trebleBoostNode.gain.setValueAtTime(0, ctx.currentTime);
 
-      // 10-Band Equalizer Frequencies: 31Hz, 62Hz, 125Hz, 250Hz, 500Hz, 1kHz, 2kHz, 4kHz, 8kHz, 16kHz
       const eqFrequencies = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
       const eqTypes = ['lowshelf', 'peaking', 'peaking', 'peaking', 'peaking', 'peaking', 'peaking', 'peaking', 'peaking', 'highshelf'];
       const eqNodes = eqFrequencies.map((freq, idx) => {
@@ -132,7 +187,6 @@
       limiterNode.curve = createTransparentLimiterCurve();
       limiterNode.oversample = '2x';
 
-      // AnalyserNode for Real-Time Peak Meter
       const analyserNode = ctx.createAnalyser();
       analyserNode.fftSize = 256;
 
@@ -141,6 +195,7 @@
       const chain = {
         source,
         subsonicFilter,
+        vocalClarityNode,
         bassBoostNode,
         trebleBoostNode,
         eqNodes,
@@ -174,6 +229,7 @@
     try {
       chain.source.disconnect();
       chain.subsonicFilter.disconnect();
+      chain.vocalClarityNode.disconnect();
       chain.bassBoostNode.disconnect();
       chain.trebleBoostNode.disconnect();
       chain.eqNodes.forEach(n => n.disconnect());
@@ -184,6 +240,8 @@
       chain.analyserNode.disconnect();
       chain.masterGainNode.disconnect();
 
+      // Apply Vocal Clarity Gain
+      chain.vocalClarityNode.gain.setValueAtTime(audioState.vocalClarity ? 5 : 0, ctx.currentTime);
       chain.bassBoostNode.gain.setValueAtTime(audioState.bassBoost || 0, ctx.currentTime);
       chain.trebleBoostNode.gain.setValueAtTime(audioState.trebleBoost || 0, ctx.currentTime);
 
@@ -199,16 +257,33 @@
         chain.pannerNode.pan.setValueAtTime(panVal, ctx.currentTime);
       }
 
+      // Apply Stereo to Mono Conversion
+      if (audioState.isMono) {
+        chain.gainNode.channelCount = 1;
+        chain.gainNode.channelCountMode = 'clamped-max';
+      } else {
+        chain.gainNode.channelCount = 2;
+        chain.gainNode.channelCountMode = 'max';
+      }
+
+      // Enforce Ear Protection Safety Lock Cap if active
+      let effectiveVolume = audioState.volume;
+      if (audioState.maxLock > 0 && effectiveVolume > audioState.maxLock) {
+        effectiveVolume = audioState.maxLock;
+      }
+
       const isMuted = audioState.isMuted;
-      const targetVolume = isMuted ? 0 : audioState.volume;
+      const targetVolume = isMuted ? 0 : effectiveVolume;
       const boostFactor = targetVolume / 100;
 
       const hasEQ = audioState.eqBands && audioState.eqBands.some(v => v !== 0);
       const hasBassTreble = audioState.bassBoost !== 0 || audioState.trebleBoost !== 0;
       const hasNightMode = audioState.nightMode;
       const hasPan = audioState.panBalance !== 0;
+      const hasVocal = audioState.vocalClarity;
+      const hasMono = audioState.isMono;
 
-      if (targetVolume <= 100 && !audioState.antiDistortion && !hasEQ && !hasBassTreble && !hasNightMode && !hasPan) {
+      if (targetVolume <= 100 && !audioState.antiDistortion && !hasEQ && !hasBassTreble && !hasNightMode && !hasPan && !hasVocal && !hasMono) {
         chain.gainNode.gain.setValueAtTime(boostFactor, ctx.currentTime);
         chain.source.connect(chain.gainNode);
         chain.gainNode.connect(ctx.destination);
@@ -219,6 +294,9 @@
 
       lastNode.connect(chain.subsonicFilter);
       lastNode = chain.subsonicFilter;
+
+      lastNode.connect(chain.vocalClarityNode);
+      lastNode = chain.vocalClarityNode;
 
       lastNode.connect(chain.bassBoostNode);
       lastNode = chain.bassBoostNode;
@@ -294,12 +372,16 @@
     const domain = window.location.hostname;
     chrome.storage.local.get([
       'globalVolume', 'antiDistortion', 'isMuted', 'siteVolumes',
-      'nightMode', 'panBalance', 'bassBoost', 'trebleBoost', 'audioProfile', 'eqBands', 'eqMode', 'vizTheme'
+      'nightMode', 'isMono', 'vocalClarity', 'maxLock',
+      'panBalance', 'bassBoost', 'trebleBoost', 'audioProfile', 'eqBands', 'eqMode', 'vizTheme'
     ], (res) => {
       if (res.globalVolume !== undefined) audioState.volume = res.globalVolume;
       if (res.antiDistortion !== undefined) audioState.antiDistortion = res.antiDistortion;
       if (res.isMuted !== undefined) audioState.isMuted = res.isMuted;
       if (res.nightMode !== undefined) audioState.nightMode = res.nightMode;
+      if (res.isMono !== undefined) audioState.isMono = res.isMono;
+      if (res.vocalClarity !== undefined) audioState.vocalClarity = res.vocalClarity;
+      if (res.maxLock !== undefined) audioState.maxLock = res.maxLock;
       if (res.panBalance !== undefined) audioState.panBalance = res.panBalance;
       if (res.bassBoost !== undefined) audioState.bassBoost = res.bassBoost;
       if (res.trebleBoost !== undefined) audioState.trebleBoost = res.trebleBoost;
@@ -323,6 +405,11 @@
         type: "UPDATE_BADGE",
         volume: audioState.volume,
         isMuted: audioState.isMuted
+      }, () => {
+        if (chrome.runtime.lastError) {
+          // Suppress connection errors when extension reloaded
+          void chrome.runtime.lastError;
+        }
       });
     } catch (e) {}
   }
@@ -362,6 +449,9 @@
         antiDistortion: audioState.antiDistortion,
         isMuted: audioState.isMuted,
         nightMode: audioState.nightMode,
+        isMono: audioState.isMono,
+        vocalClarity: audioState.vocalClarity,
+        maxLock: audioState.maxLock,
         panBalance: audioState.panBalance,
         bassBoost: audioState.bassBoost,
         trebleBoost: audioState.trebleBoost,
@@ -386,7 +476,37 @@
       }
       scanAndApply();
       notifyBadge();
+      if (message.fromShortcut) {
+        showOSD(`${audioState.volume}%`, audioState.isMuted ? "🔇" : "🔊");
+      }
       sendResponse({ status: "OK", volume: audioState.volume });
+      return true;
+    }
+
+    if (message.type === "SET_MONO") {
+      audioState.isMono = !!message.enabled;
+      chrome.storage.local.set({ isMono: audioState.isMono });
+      scanAndApply();
+      showOSD(audioState.isMono ? "Mono Audio Enabled" : "Stereo Audio Enabled", "🎧");
+      sendResponse({ status: "OK", isMono: audioState.isMono });
+      return true;
+    }
+
+    if (message.type === "SET_VOCAL_CLARITY") {
+      audioState.vocalClarity = !!message.enabled;
+      chrome.storage.local.set({ vocalClarity: audioState.vocalClarity });
+      scanAndApply();
+      showOSD(audioState.vocalClarity ? "Vocal Booster Active" : "Vocal Booster Off", "🎙️");
+      sendResponse({ status: "OK", vocalClarity: audioState.vocalClarity });
+      return true;
+    }
+
+    if (message.type === "SET_MAX_LOCK") {
+      audioState.maxLock = message.val || 0;
+      chrome.storage.local.set({ maxLock: audioState.maxLock });
+      scanAndApply();
+      showOSD(audioState.maxLock > 0 ? `Ear Safety Cap (${audioState.maxLock}%)` : "Ear Safety Cap Off", "🛡️");
+      sendResponse({ status: "OK", maxLock: audioState.maxLock });
       return true;
     }
 
@@ -478,6 +598,7 @@
       audioState.isMuted = message.isMuted !== undefined ? message.isMuted : !audioState.isMuted;
       scanAndApply();
       notifyBadge();
+      showOSD(audioState.isMuted ? "Muted" : `${audioState.volume}%`, audioState.isMuted ? "🔇" : "🔊");
       sendResponse({ status: "OK", isMuted: audioState.isMuted });
       return true;
     }
@@ -492,6 +613,7 @@
       }
       scanAndApply();
       notifyBadge();
+      showOSD(audioState.isMuted ? "Muted" : `${audioState.volume}%`, audioState.isMuted ? "🔇" : "🔊");
       sendResponse({ status: "OK", volume: audioState.volume, isMuted: audioState.isMuted });
       return true;
     }
