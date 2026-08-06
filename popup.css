@@ -1,4 +1,4 @@
-/* popup.css - volUP Studio Edition Styling System (v1.4.1) */
+/* popup.css - volUP Studio Edition Styling System (v1.4.2 Theme Engine Fix) */
 
 :root {
   --bg-main: #0b0f19;
@@ -95,21 +95,21 @@ body {
 }
 
 .theme-toggle-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--bg-card-border);
-  color: var(--accent-cyan);
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid var(--accent-purple);
+  color: #ffffff;
   padding: 3px 8px;
   border-radius: 12px;
   font-size: 10px;
   font-weight: 800;
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.3);
 }
 
 .theme-toggle-btn:hover {
-  background: rgba(6, 182, 212, 0.2);
-  border-color: var(--accent-cyan);
-  transform: translateY(-1px);
+  background: var(--gradient-boost);
+  transform: scale(1.05);
 }
 
 .domain-badge {
@@ -207,65 +207,97 @@ body {
   position: relative;
 }
 
-/* --- VISUALIZER FX THEMES --- */
+/* ==========================================================================
+   DRAMATICALLY DISTINCT VISUALIZER THEMES (WAVES, PULSE, LED)
+   ========================================================================== */
+
 .visualizer {
   display: flex;
   align-items: flex-end;
-  gap: 4px;
-  height: 20px;
-  margin-bottom: 4px;
+  justify-content: center;
+  gap: 5px;
+  height: 24px;
+  margin-bottom: 6px;
+  transition: all 0.3s ease;
 }
 
 .visualizer .bar {
-  width: 4px;
+  width: 5px;
   height: 6px;
-  border-radius: 2px;
-  transition: all 0.2s ease;
+  border-radius: 3px;
+  transition: all 0.15s ease;
   opacity: 0.85;
 }
 
-/* Theme 1: Waves Theme (Neon Purple) */
+/* THEME 1: WAVES THEME (Neon Purple Vertical Bouncing Bars) */
 .visualizer.waves-theme .bar {
-  background: var(--accent-purple);
+  background: linear-gradient(180deg, var(--accent-cyan) 0%, var(--accent-purple) 100%);
+  box-shadow: 0 0 6px rgba(139, 92, 246, 0.4);
 }
 .visualizer.waves-theme.active .bar {
-  animation: bounce 0.6s infinite alternate ease-in-out;
+  animation: bounceWave 0.5s infinite alternate ease-in-out;
 }
 
-/* Theme 2: Pulse Theme (Cyan Glowing Ring / Bar FX) */
+/* THEME 2: PULSE THEME (Glowing Pulsating Ring FX) */
+.visualizer.pulse-theme {
+  height: 28px;
+  align-items: center;
+}
 .visualizer.pulse-theme .bar {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
   background: var(--accent-cyan);
-  box-shadow: 0 0 6px var(--accent-cyan);
+  box-shadow: 0 0 10px var(--accent-cyan), 0 0 16px var(--accent-cyan);
 }
 .visualizer.pulse-theme.active .bar {
-  animation: pulseFx 0.4s infinite alternate ease-in-out;
+  animation: pulseRing 0.4s infinite alternate ease-in-out;
 }
 
-/* Theme 3: LED Theme (Green-Yellow-Red Gradient Meter) */
-.visualizer.led-theme .bar-1, .visualizer.led-theme .bar-2 { background: var(--accent-green); }
-.visualizer.led-theme .bar-3, .visualizer.led-theme .bar-4 { background: var(--accent-amber); }
-.visualizer.led-theme .bar-5, .visualizer.led-theme .bar-6 { background: var(--accent-red); }
+/* THEME 3: LED THEME (Classic Stüdyo Green-Amber-Red Segmented VU Meter) */
+.visualizer.led-theme .bar {
+  width: 6px;
+  border-radius: 1px;
+}
+.visualizer.led-theme .bar-1, .visualizer.led-theme .bar-2 {
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+}
+.visualizer.led-theme .bar-3, .visualizer.led-theme .bar-4 {
+  background: #f59e0b;
+  box-shadow: 0 0 6px #f59e0b;
+}
+.visualizer.led-theme .bar-5, .visualizer.led-theme .bar-6 {
+  background: #ef4444;
+  box-shadow: 0 0 6px #ef4444;
+}
 .visualizer.led-theme.active .bar {
-  animation: bounce 0.5s infinite alternate ease-in-out;
+  animation: ledStep 0.4s infinite alternate steps(4);
 }
 
-.visualizer.active .bar-1 { animation-delay: 0.1s; }
-.visualizer.active .bar-2 { animation-delay: 0.3s; }
-.visualizer.active .bar-3 { animation-delay: 0.0s; }
-.visualizer.active .bar-4 { animation-delay: 0.4s; }
-.visualizer.active .bar-5 { animation-delay: 0.2s; }
-.visualizer.active .bar-6 { animation-delay: 0.5s; }
+.visualizer.active .bar-1 { animation-delay: 0.05s; }
+.visualizer.active .bar-2 { animation-delay: 0.25s; }
+.visualizer.active .bar-3 { animation-delay: 0.12s; }
+.visualizer.active .bar-4 { animation-delay: 0.3s; }
+.visualizer.active .bar-5 { animation-delay: 0.18s; }
+.visualizer.active .bar-6 { animation-delay: 0.35s; }
 
-@keyframes bounce {
-  0% { height: 6px; }
-  100% { height: 18px; }
+@keyframes bounceWave {
+  0% { height: 4px; }
+  100% { height: 22px; }
 }
 
-@keyframes pulseFx {
-  0% { height: 8px; transform: scaleY(0.8); }
-  100% { height: 20px; transform: scaleY(1.2); }
+@keyframes pulseRing {
+  0% { transform: scale(0.6); opacity: 0.4; }
+  100% { transform: scale(1.6); opacity: 1; }
 }
 
+@keyframes ledStep {
+  0% { height: 4px; opacity: 0.3; }
+  100% { height: 20px; opacity: 1; }
+}
+
+/* Volume Percentage */
 .percentage-wrapper {
   display: flex;
   align-items: baseline;
@@ -798,7 +830,7 @@ input:checked + .toggle-slider:before { transform: translateX(16px); }
   min-width: 0;
 }
 
-/* --- FIXED SMALL CRISP MIXER FAVICON --- */
+/* MIXER FAVICON - FIXED SMALL SIZE */
 .mixer-favicon {
   width: 16px;
   height: 16px;

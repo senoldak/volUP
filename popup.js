@@ -1,4 +1,4 @@
-// popup.js - UI Controller for volUP (v1.4.1 Studio Edition)
+// popup.js - UI Controller for volUP (v1.4.2 Theme Engine Fix)
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Navigation Tabs
@@ -102,35 +102,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function fetchState() {
-    if (!activeTabId) return;
-    chrome.tabs.sendMessage(activeTabId, { type: "GET_STATUS" }, (response) => {
-      if (chrome.runtime.lastError || !response) {
-        domainDisplay.textContent = "Out of Scope";
-        return;
-      }
+    chrome.storage.local.get([
+      'globalVolume', 'antiDistortion', 'isMuted', 'siteVolumes',
+      'nightMode', 'panBalance', 'bassBoost', 'trebleBoost', 'audioProfile', 'eqBands', 'eqMode', 'vizTheme'
+    ], (res) => {
+      if (res.globalVolume !== undefined) currentVolume = res.globalVolume;
+      if (res.antiDistortion !== undefined) isAntiDistortion = res.antiDistortion;
+      if (res.isMuted !== undefined) isMuted = res.isMuted;
+      if (res.nightMode !== undefined) isNightMode = res.nightMode;
+      if (res.panBalance !== undefined) currentPan = res.panBalance;
+      if (res.bassBoost !== undefined) currentBass = res.bassBoost;
+      if (res.trebleBoost !== undefined) currentTreble = res.trebleBoost;
+      if (res.audioProfile !== undefined) currentProfile = res.audioProfile;
+      if (res.eqMode !== undefined) currentEqMode = res.eqMode;
+      if (res.vizTheme !== undefined) currentVizTheme = res.vizTheme;
+      if (res.eqBands !== undefined) currentEqBands = res.eqBands;
 
-      currentVolume = response.volume || 100;
-      isAntiDistortion = response.antiDistortion !== undefined ? response.antiDistortion : true;
-      isMuted = !!response.isMuted;
-      isNightMode = !!response.nightMode;
-      currentPan = response.panBalance !== undefined ? response.panBalance : 0;
-      currentBass = response.bassBoost !== undefined ? response.bassBoost : 0;
-      currentTreble = response.trebleBoost !== undefined ? response.trebleBoost : 0;
-      currentProfile = response.audioProfile || 'flat';
-      currentEqMode = response.eqMode || '5band';
-      currentVizTheme = response.vizTheme || 'waves';
-      currentEqBands = response.eqBands || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-
-      if (response.domain) {
-        chrome.storage.local.get(['siteVolumes'], (res) => {
-          const siteVolumes = res.siteVolumes || {};
-          if (siteVolumes[response.domain] !== undefined) {
-            rememberDomainToggle.checked = true;
+      if (activeTabId) {
+        chrome.tabs.sendMessage(activeTabId, { type: "GET_STATUS" }, (response) => {
+          if (chrome.runtime.lastError || !response) {
+            domainDisplay.textContent = "Out of Scope";
+          } else {
+            if (response.domain) {
+              const siteVolumes = res.siteVolumes || {};
+              if (siteVolumes[response.domain] !== undefined) {
+                currentVolume = siteVolumes[response.domain];
+                rememberDomainToggle.checked = true;
+              }
+            }
           }
+          updateUI();
         });
+      } else {
+        updateUI();
       }
-
-      updateUI();
     });
   }
 
@@ -142,7 +147,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     sliderFill.style.width = `${fillPercent}%`;
 
     // Apply Visualizer FX Theme Class dynamically
-    visualizer.className = `visualizer ${currentVizTheme}-theme${isMuted || currentVolume === 0 ? '' : ' active'}`;
+    const themeClass = `${currentVizTheme}-theme`;
+    const activeClass = (isMuted || currentVolume === 0) ? '' : ' active';
+    visualizer.className = `visualizer ${themeClass}${activeClass}`;
     vizThemeBtn.textContent = `🎨 ${currentVizTheme.toUpperCase()}`;
 
     if (currentVolume > 500) {
@@ -250,6 +257,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     updateUI();
 
+    chrome.storage.local.set({ globalVolume: currentVolume });
+
     if (activeTabId) {
       chrome.tabs.sendMessage(activeTabId, {
         type: "SET_VOLUME",
@@ -262,6 +271,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function sendMuteState(muted) {
     isMuted = muted;
     updateUI();
+    chrome.storage.local.set({ isMuted: isMuted });
     if (activeTabId) {
       chrome.tabs.sendMessage(activeTabId, {
         type: "TOGGLE_MUTE",
@@ -273,6 +283,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function sendEQ(bands) {
     currentEqBands = bands;
     updateUI();
+    chrome.storage.local.set({ eqBands: currentEqBands });
     if (activeTabId) {
       chrome.tabs.sendMessage(activeTabId, { type: "SET_EQ", eqBands: currentEqBands });
     }
@@ -280,6 +291,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function setProfile(profileKey) {
     currentProfile = profileKey;
+    chrome.storage.local.set({ audioProfile: profileKey });
     if (activeTabId) {
       chrome.tabs.sendMessage(activeTabId, { type: "SET_PROFILE", profile: profileKey }, () => {
         fetchState();
@@ -428,10 +440,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Visualizer Theme Cycle Switcher
+  // Visualizer Theme Cycle Switcher with Persistent Storage Fix
   vizThemeBtn.addEventListener('click', () => {
     const currentIdx = VIZ_THEMES.indexOf(currentVizTheme);
     currentVizTheme = VIZ_THEMES[(currentIdx + 1) % VIZ_THEMES.length];
+    chrome.storage.local.set({ vizTheme: currentVizTheme });
     updateUI();
     if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_VIZ_THEME", theme: currentVizTheme });
   });
@@ -445,11 +458,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   antiDistortionToggle.addEventListener('change', (e) => {
     isAntiDistortion = e.target.checked;
+    chrome.storage.local.set({ antiDistortion: isAntiDistortion });
     if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_ANTI_DISTORTION", enabled: isAntiDistortion });
   });
 
   nightModeToggle.addEventListener('change', (e) => {
     isNightMode = e.target.checked;
+    chrome.storage.local.set({ nightMode: isNightMode });
     if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_NIGHT_MODE", enabled: isNightMode });
   });
 
@@ -466,12 +481,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Listeners: EQ Mode Switcher
   eq5Btn.addEventListener('click', () => {
     currentEqMode = '5band';
+    chrome.storage.local.set({ eqMode: '5band' });
     updateUI();
     if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_EQ_MODE", mode: '5band' });
   });
 
   eq10Btn.addEventListener('click', () => {
     currentEqMode = '10band';
+    chrome.storage.local.set({ eqMode: '10band' });
     updateUI();
     if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_EQ_MODE", mode: '10band' });
   });
@@ -480,12 +497,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   bassSlider.addEventListener('input', (e) => {
     currentBass = parseInt(e.target.value, 10);
     bassVal.textContent = `+${currentBass} dB`;
+    chrome.storage.local.set({ bassBoost: currentBass });
     if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_BASS_BOOST", val: currentBass });
   });
 
   trebleSlider.addEventListener('input', (e) => {
     currentTreble = parseInt(e.target.value, 10);
     trebleVal.textContent = `+${currentTreble} dB`;
+    chrome.storage.local.set({ trebleBoost: currentTreble });
     if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_TREBLE_BOOST", val: currentTreble });
   });
 
@@ -527,6 +546,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   panSlider.addEventListener('input', (e) => {
     currentPan = parseFloat(e.target.value);
     updateUI();
+    chrome.storage.local.set({ panBalance: currentPan });
     if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: "SET_PAN", pan: currentPan });
   });
 
